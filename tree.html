@@ -46,16 +46,14 @@
             flex: 7;
             position: relative;
             display: flex; justify-content: center; align-items: flex-end;
-            padding-bottom: 20px; /* Отступ от нижнего края секции */
+            padding-bottom: 20px;
             overflow: hidden;
         }
 
-        /* SVG */
         .tree-svg {
             height: 98%; width: auto; max-width: 95%;
             filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
             z-index: 10; overflow: visible;
-            /* Убрали bottom: 35px, теперь всё внутри SVG */
         }
 
         /* Анимации SVG элементов */
@@ -72,8 +70,8 @@
         .base-layer {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
             display: flex; align-items: flex-end; justify-content: center;
-            z-index: 11; /* Перед елкой */
-            width: 100%; gap: 80px; /* Большой отступ, чтобы не закрывать пень */
+            z-index: 11;
+            width: 100%; gap: 80px; /* Отступ под пень */
         }
 
         .gift {
@@ -168,19 +166,7 @@
                 <rect x="120" y="380" width="60" height="50" fill="#5d4037" stroke="#281813" stroke-width="4" rx="2" />
                 <ellipse cx="150" cy="380" rx="30" ry="10" fill="#8d6e63" stroke="#281813" stroke-width="4" />
 
-                <path d="M150 40 
-                         Q180 120 230 160 
-                         Q250 180 210 180 
-                         Q260 260 280 300
-                         Q290 320 240 320
-                         Q280 380 290 395 
-                         L10 395 
-                         Q20 380 60 320
-                         Q10 320 20 300
-                         Q40 260 90 180
-                         Q50 180 70 160
-                         Q120 120 150 40 Z" 
-                      fill="url(#treeFill)" />
+                <path d="M150 40 Q180 120 230 160 Q250 180 210 180 Q260 260 280 300 Q290 320 240 320 Q280 380 290 395 L10 395 Q20 380 60 320 Q10 320 20 300 Q40 260 90 180 Q50 180 70 160 Q120 120 150 40 Z" fill="url(#treeFill)" />
 
                 <path d="M130 80 Q150 90 180 75 M100 130 Q150 150 210 120 M70 200 Q150 230 240 190 M50 280 Q150 320 260 270 M30 360 Q150 410 270 350" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="2" stroke-linecap="round" />
 
@@ -243,15 +229,34 @@
 
     // --- CONFIG ---
     const SUPABASE_URL = "https://jnavsekwmitcajgvfafk.supabase.co";
+    // ВАЖНО: Использую твой ANON ключ (публичный)
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuYXZzZWt3bWl0Y2FqZ3ZmYWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MDU1OTIsImV4cCI6MjA3NDE4MTU5Mn0.0NmAYM2hgzR7emeg45WpoSgqiHYizmtj8dGhMK7FOS4";
     
-    // ТВОЙ АДМИН ID (для тестов)
-    const MY_ADMIN_ID = "1877549535";
+    // --- АДАПТИВНАЯ ЛОГИКА ---
+    // Если открыто в TG -> берем ID пользователя
+    // Если открыто в браузере -> генерируем случайного Гостя (чтобы не быть Админом)
     
-    const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : MY_ADMIN_ID;
-    const userName = tg.initDataUnsafe?.user?.first_name || "Кот";
-
-    console.log("Logged as:", userId);
+    let userId, userName;
+    
+    const tgUser = tg.initDataUnsafe?.user;
+    
+    if (tgUser) {
+        // Зашли через Telegram
+        userId = String(tgUser.id);
+        userName = tgUser.first_name || "Кот";
+        console.log("Logged as Telegram User:", userId);
+    } else {
+        // Зашли через браузер (тест)
+        // Генерируем ID сессии или берем из localStorage, чтобы сохранить прогресс теста
+        let savedGuestId = localStorage.getItem('guest_user_id');
+        if (!savedGuestId) {
+            savedGuestId = "guest_" + Math.floor(Math.random() * 1000000);
+            localStorage.setItem('guest_user_id', savedGuestId);
+        }
+        userId = savedGuestId;
+        userName = "Гость";
+        console.log("Logged as Guest:", userId);
+    }
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -330,10 +335,11 @@
     }
 
     async function fetchInventory() {
+        // Если это гость, у него, скорее всего, нет инвентаря в БД, будет пусто. Это нормально.
         const { data, error } = await supabase.from('inventory').select('item_name, quantity').eq('user_id', userId);
         if (error) {
             console.error(error);
-            showError("Ошибка загрузки инвентаря. Проверьте RLS!");
+            // Не показываем ошибку гостю, просто пустой инвентарь
             return;
         }
         userInventory = {};
