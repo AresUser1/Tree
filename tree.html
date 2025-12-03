@@ -229,25 +229,16 @@
 
     // --- CONFIG ---
     const SUPABASE_URL = "https://jnavsekwmitcajgvfafk.supabase.co";
-    // ВАЖНО: Использую твой ANON ключ (публичный)
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuYXZzZWt3bWl0Y2FqZ3ZmYWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MDU1OTIsImV4cCI6MjA3NDE4MTU5Mn0.0NmAYM2hgzR7emeg45WpoSgqiHYizmtj8dGhMK7FOS4";
     
-    // --- АДАПТИВНАЯ ЛОГИКА ---
-    // Если открыто в TG -> берем ID пользователя
-    // Если открыто в браузере -> генерируем случайного Гостя (чтобы не быть Админом)
-    
+    // --- ЛОГИКА АВТОРИЗАЦИИ ---
     let userId, userName;
-    
     const tgUser = tg.initDataUnsafe?.user;
     
     if (tgUser) {
-        // Зашли через Telegram
         userId = String(tgUser.id);
         userName = tgUser.first_name || "Кот";
-        console.log("Logged as Telegram User:", userId);
     } else {
-        // Зашли через браузер (тест)
-        // Генерируем ID сессии или берем из localStorage, чтобы сохранить прогресс теста
         let savedGuestId = localStorage.getItem('guest_user_id');
         if (!savedGuestId) {
             savedGuestId = "guest_" + Math.floor(Math.random() * 1000000);
@@ -255,7 +246,16 @@
         }
         userId = savedGuestId;
         userName = "Гость";
-        console.log("Logged as Guest:", userId);
+    }
+
+    // Логгер на экран для отладки
+    function logToScreen(msg) {
+        console.log(msg);
+        const errDiv = document.getElementById('error-log');
+        if (errDiv) {
+            errDiv.style.display = 'block';
+            errDiv.innerText = msg;
+        }
     }
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -276,16 +276,60 @@
         bulbs = document.querySelectorAll('.svg-bulb');
         
         try {
-            await fetchInventory();
-            await fetchTreeData();
-            await fetchLeaderboard();
+            await fetchTreeData(); // Сначала грузим Елку
+            await fetchInventory(); // Потом инвентарь
+            await fetchLeaderboard(); // Потом топ
         } catch (e) {
-            showError("Data Error: " + e.message);
+            logToScreen("CRITICAL INIT ERROR: " + e.message);
         }
         setupRealtime();
     }
 
-    // --- VISUALS ---
+    // --- DATA ---
+    async function fetchTreeData() {
+        // Загружаем данные о глобальной елке
+        const { data, error } = await supabase
+            .from('users')
+            .select('level, xp')
+            .eq('id', 'global_tree')
+            .maybeSingle(); // Используем maybeSingle чтобы не крашилось если нет записи
+
+        if (error) {
+            logToScreen("Ошибка загрузки Елки: " + error.message);
+            return;
+        }
+        
+        if (!data) {
+            logToScreen("Ошибка: Запись 'global_tree' не найдена в таблице users! Выполните SQL INSERT.");
+            return;
+        }
+        
+        updateUI(data.level, data.xp);
+    }
+
+    async function fetchInventory() {
+        const { data, error } = await supabase
+            .from('inventory')
+            .select('item_name, quantity')
+            .eq('user_id', userId);
+            
+        if (error) {
+            // Не критично, может быть просто пусто
+            console.error(error);
+            return;
+        }
+        userInventory = {};
+        if (data) data.forEach(i => userInventory[i.item_name] = i.quantity);
+        renderInventory();
+    }
+
+    async function fetchLeaderboard() {
+        const { data: top } = await supabase.from('tree_contributors').select('*').order('points', {ascending:false}).limit(10);
+        const { data: me } = await supabase.from('tree_contributors').select('*').eq('user_id', userId).maybeSingle();
+        renderLeaderboard(top || [], me);
+    }
+
+    // --- VISUALS & RENDER ---
     function updateVisuals(percent) {
         const countToLight = Math.floor((percent / 100) * bulbs.length);
         bulbs.forEach((bulb, i) => {
@@ -293,7 +337,6 @@
             if (shouldBeOn) bulb.classList.add('on');
             else bulb.classList.remove('on');
         });
-
         const star = document.getElementById('main-star');
         if (percent >= 90) star.classList.add('star-lit');
         else star.classList.remove('star-lit');
@@ -301,15 +344,14 @@
 
     function initSnow() {
         const canvas = document.getElementById('snow-canvas');
+        if(!canvas) return;
         const ctx = canvas.getContext('2d');
         let w = canvas.width = window.innerWidth;
         let h = canvas.height = window.innerHeight;
-        
         const flakes = Array.from({length: 60}).map(() => ({
             x: Math.random() * w, y: Math.random() * h,
             r: Math.random() * 2 + 1, d: Math.random() * 1 + 0.5
         }));
-
         function loop() {
             ctx.clearRect(0,0,w,h);
             ctx.fillStyle = "rgba(255,255,255,0.7)";
@@ -327,42 +369,13 @@
         loop();
     }
 
-    // --- DATA ---
-    async function fetchTreeData() {
-        const { data, error } = await supabase.from('users').select('level, xp').eq('id', 'global_tree').single();
-        if (error) console.error(error);
-        if (data) updateUI(data.level, data.xp);
-    }
-
-    async function fetchInventory() {
-        // Если это гость, у него, скорее всего, нет инвентаря в БД, будет пусто. Это нормально.
-        const { data, error } = await supabase.from('inventory').select('item_name, quantity').eq('user_id', userId);
-        if (error) {
-            console.error(error);
-            // Не показываем ошибку гостю, просто пустой инвентарь
-            return;
-        }
-        userInventory = {};
-        if (data) data.forEach(i => userInventory[i.item_name] = i.quantity);
-        renderInventory();
-    }
-
-    async function fetchLeaderboard() {
-        const { data: top } = await supabase.from('tree_contributors').select('*').order('points', {ascending:false}).limit(10);
-        const { data: me } = await supabase.from('tree_contributors').select('*').eq('user_id', userId).single();
-        renderLeaderboard(top || [], me);
-    }
-
-    // --- RENDER ---
     function updateUI(lvl, xp) {
         currentLevel = lvl;
         const max = lvl * 500;
         const pct = Math.min(100, Math.floor((xp/max)*100));
-        
         document.getElementById('tree-lvl').textContent = lvl;
         document.getElementById('progress-fill').style.width = pct + '%';
         document.getElementById('progress-text').textContent = `${xp} / ${max} (${pct}%)`;
-        
         updateVisuals(pct);
     }
 
@@ -419,10 +432,9 @@
     // --- ACTIONS ---
     async function donate(name, pts) {
         if((userInventory[name]||0) <= 0) return;
-        
         if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
         userInventory[name]--; 
-        renderInventory(); // Optimistic
+        renderInventory(); 
 
         const { data, error } = await supabase.rpc('contribute_to_tree', {
             user_id_param: userId, user_name_param: userName,
@@ -430,9 +442,10 @@
         });
 
         if(error || (data && !data.success)) {
-            userInventory[name]++; // Rollback
+            userInventory[name]++; 
             renderInventory();
-            showToast('❌ Ошибка!', true);
+            showToast('❌ Ошибка! Возможно RLS.', true);
+            logToScreen("Donate Error: " + (error?.message || data?.message));
         } else {
             showToast(`✅ Отдано: ${name}`);
         }
@@ -443,12 +456,6 @@
         t.textContent = text;
         t.className = `toast show ${err?'error':''}`;
         setTimeout(() => t.classList.remove('show'), 2000);
-    }
-
-    function showError(msg) {
-        const el = document.getElementById('error-log');
-        el.style.display = 'block';
-        el.textContent = msg;
     }
 
     function setupRealtime() {
