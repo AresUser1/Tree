@@ -24,14 +24,12 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* ФОН */
         .background-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0f172a 40%, #020617 100%);
             z-index: 0;
         }
         
-        /* СНЕГ (CSS - ЛЕГКИЙ) */
         .snow-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="1.5" fill="white" opacity="0.4"/><circle cx="50" cy="80" r="1" fill="white" opacity="0.4"/><circle cx="150" cy="30" r="2" fill="white" opacity="0.4"/><circle cx="100" cy="150" r="1.5" fill="white" opacity="0.4"/></svg>');
@@ -40,16 +38,16 @@
         }
         @keyframes snow { from { background-position: 0 0; } to { background-position: 0 500px; } }
 
-        /* ГЛАВНЫЙ КОНТЕЙНЕР */
+        /* Структура экрана: Flexbox */
         .viewport {
-            height: 100dvh; /* Динамическая высота для мобилок */
+            height: 100dvh; 
             display: flex; 
             flex-direction: column; 
             position: relative; 
             z-index: 5;
         }
 
-        /* СЦЕНА С ЁЛКОЙ (Растягивается) */
+        /* Верхняя часть (Елка) - гибкая */
         .tree-stage {
             flex-grow: 1;
             position: relative;
@@ -58,7 +56,7 @@
             align-items: flex-end; 
             padding-bottom: 20px;
             overflow: visible;
-            min-height: 200px;
+            min-height: 200px; /* Минимальная высота, чтобы елку не сплющило */
         }
 
         .tree-svg {
@@ -68,15 +66,12 @@
             z-index: 10; overflow: visible;
         }
 
-        /* СТИЛИ SVG */
         .star-shape { fill: #ffff00; stroke: #ca8a04; stroke-width: 1px; transition: all 1s; }
         .star-glowing { fill: #ffff00; stroke: none; } 
 
         .svg-bulb { transition: fill 0.5s ease, filter 0.5s ease; }
-        /* Выключенные (темные цвета) */
         .svg-bulb.c-red { fill: #7f1d1d; } .svg-bulb.c-yellow { fill: #854d0e; }
         .svg-bulb.c-blue { fill: #1e3a8a; } .svg-bulb.c-purple { fill: #581c87; }
-        /* Включенные (яркие) */
         .svg-bulb.on.c-red { fill: #ef4444; filter: drop-shadow(0 0 8px #ef4444); }
         .svg-bulb.on.c-yellow { fill: #facc15; filter: drop-shadow(0 0 8px #facc15); }
         .svg-bulb.on.c-blue { fill: #60a5fa; filter: drop-shadow(0 0 8px #60a5fa); }
@@ -93,9 +88,9 @@
         .gift.blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); width: 50px; height: 35px; }
         .gift.blue::before, .gift.blue::after { background: #e2e8f0; }
 
-        /* ПАНЕЛЬ УПРАВЛЕНИЯ */
+        /* Нижняя часть (Панель) - фиксированная по содержимому */
         .control-panel {
-            flex-shrink: 0; /* Не сжимается */
+            flex-shrink: 0; /* Не сжиматься */
             background: var(--panel-bg);
             border-top: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 -10px 50px rgba(0,0,0,0.9);
@@ -118,7 +113,7 @@
         .progress-bar {
             height: 100%; width: 0%;
             background: repeating-linear-gradient(-45deg, #ef4444, #ef4444 10px, #f8fafc 10px, #f8fafc 20px);
-            transition: width 0.5s ease-out;
+            transition: width 0.3s ease-out; /* Быстрая анимация для реалтайма */
         }
         .progress-label { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
 
@@ -138,7 +133,7 @@
 
         .scroll-hint { text-align: center; font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 5px; }
 
-        /* ЛИДЕРБОРД */
+        /* Лидерборд - под экраном */
         .leaderboard-section {
             background: #020617; 
             padding: 30px 20px 80px 20px;
@@ -154,7 +149,7 @@
         .rank.top { color: #fbbf24; }
         .u-pts { color: var(--accent-green); font-family: monospace; font-weight: bold; font-size: 15px; }
 
-        .toast { position: fixed; top: 10px; left: 50%; transform: translateX(-50%) translateY(-100px); background: rgba(34, 197, 94, 0.95); backdrop-filter: blur(5px); color: #fff; padding: 12px 24px; border-radius: 30px; font-weight: bold; font-size: 14px; z-index: 100; transition: transform 0.3s; width: max-content; }
+        .toast { position: fixed; top: 10px; left: 50%; transform: translateX(-50%) translateY(-100px); background: rgba(34, 197, 94, 0.95); backdrop-filter: blur(5px); color: #fff; padding: 12px 24px; border-radius: 30px; font-weight: bold; font-size: 14px; z-index: 100; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); width: max-content; }
         .toast.show { transform: translateX(-50%) translateY(0); }
         .toast.error { background: rgba(239, 68, 68, 0.95); }
         
@@ -238,12 +233,11 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
 
-    // --- CONFIG ---
     const SUPABASE_URL = "https://jnavsekwmitcajgvfafk.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuYXZzZWt3bWl0Y2FqZ3ZmYWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MDU1OTIsImV4cCI6MjA3NDE4MTU5Mn0.0NmAYM2hgzR7emeg45WpoSgqiHYizmtj8dGhMK7FOS4";
     
     let userId, userName;
-    let userInventory = {};
+    let userInventory = {}; // Локальный кэш инвентаря
     let currentLevel = 1;
     let bulbs = [];
     let supabase;
@@ -257,25 +251,17 @@
 
     window.onload = async () => {
         try {
-            // --- НОВАЯ ЛОГИКА АВТОРИЗАЦИИ ---
-            // 1. Сначала ищем ID в ссылке (самый надежный способ)
+            // 1. Авторизация (получаем ID из URL или TG)
             const urlParams = new URLSearchParams(window.location.search);
             const urlUserId = urlParams.get('user_id');
-            const urlFirstName = urlParams.get('first_name');
-
+            
             if (urlUserId) {
                 userId = urlUserId;
-                userName = urlFirstName || "Игрок";
-                // console.log("Authorized via URL Params:", userId);
-            } 
-            // 2. Если в ссылке нет, пробуем через Telegram API
-            else if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                userName = urlParams.get('first_name') || "Игрок";
+            } else if (tg.initDataUnsafe?.user) {
                 userId = String(tg.initDataUnsafe.user.id);
                 userName = tg.initDataUnsafe.user.first_name || "Кот";
-                // console.log("Authorized via TG API:", userId);
-            } 
-            // 3. Если ничего нет, включаем Гостя
-            else {
+            } else {
                 let savedGuestId = localStorage.getItem('guest_user_id');
                 if (!savedGuestId) {
                     savedGuestId = "guest_" + Math.floor(Math.random() * 1000000);
@@ -283,34 +269,24 @@
                 }
                 userId = savedGuestId;
                 userName = "Гость";
-                // console.log("Authorized via Guest Mode:", userId);
             }
 
-            // Инициализация Supabase
-            if (!window.supabase) throw new Error("Supabase library not loaded!");
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             
-            // Находим и сортируем лампочки
+            // Сортировка лампочек
             bulbs = Array.from(document.querySelectorAll('.svg-bulb'));
-            bulbs.sort((a, b) => {
-                const yA = parseFloat(a.getAttribute('cy'));
-                const yB = parseFloat(b.getAttribute('cy'));
-                return yB - yA; 
-            });
+            bulbs.sort((a, b) => parseFloat(b.getAttribute('cy')) - parseFloat(a.getAttribute('cy')));
 
-            // Загрузка данных
+            // Загрузка
             await fetchTreeData();
-            await fetchInventory(); // Теперь тут будет правильный userId
+            await fetchInventory();
             await fetchLeaderboard();
-            setupRealtime();
+            setupRealtime(); // <-- Запуск прослушки
 
         } catch (e) {
             console.error(e);
-            const errDiv = document.getElementById('error-log');
-            if(errDiv) {
-                errDiv.style.display = 'block';
-                errDiv.innerText = "Ошибка: " + e.message;
-            }
+            document.getElementById('error-log').style.display = 'block';
+            document.getElementById('error-log').innerText = "Ошибка: " + e.message;
         }
     };
 
@@ -337,12 +313,11 @@
     }
 
     async function fetchTreeData() {
-        const { data, error } = await supabase.from('users').select('level, xp').eq('id', 'global_tree').maybeSingle();
+        const { data } = await supabase.from('users').select('level, xp').eq('id', 'global_tree').maybeSingle();
         if (data) updateUI(data.level, data.xp);
     }
 
     async function fetchInventory() {
-        // Загружаем инвентарь для userId (который мы теперь точно знаем)
         const { data } = await supabase.from('inventory').select('item_name, quantity').eq('user_id', userId);
         userInventory = {};
         if (data) data.forEach(i => userInventory[i.item_name] = i.quantity);
@@ -368,15 +343,13 @@
     function renderInventory() {
         const grid = document.getElementById('inventory-grid');
         grid.innerHTML = '';
-        
-        // Перебираем возможные предметы для елки
         Object.entries(ITEMS).forEach(([name, info]) => {
-            const qty = userInventory[name] || 0; // Берем из загруженного инвентаря
-            
-            const div = document.createElement('div');
-            div.className = `item-card ${qty > 0 ? '' : 'disabled'}`;
-            div.onclick = () => donate(name, info.pts);
-            div.innerHTML = `
+            const qty = userInventory[name] || 0;
+            const card = document.createElement('div');
+            // Если предметов 0 - делаем кнопку полупрозрачной и неактивной
+            card.className = `item-card ${qty > 0 ? '' : 'disabled'}`;
+            card.onclick = () => donate(name, info.pts);
+            card.innerHTML = `
                 <div class="item-icon">${info.emoji}</div>
                 <div class="item-details">
                     <span class="item-name">${name}</span>
@@ -384,7 +357,7 @@
                 </div>
                 <div class="item-count">${qty}</div>
             `;
-            grid.appendChild(div);
+            grid.appendChild(card);
         });
     }
 
@@ -411,31 +384,33 @@
                     <span class="user-info" style="flex-grow:1; margin-left:10px;">Вы (${me.username})</span>
                     <span class="u-pts">${me.points}</span>
                 </div>`;
-        } else {
-            myCont.innerHTML = '<div style="text-align:center; font-size:12px; opacity:0.5;">Вы еще не участвовали</div>';
         }
     }
 
     async function donate(name, pts) {
-        if((userInventory[name]||0) <= 0) return;
-        if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+        // Оптимистичная проверка
+        if ((userInventory[name] || 0) <= 0) return;
         
-        // Оптимистичное обновление интерфейса
+        if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+        
+        // 1. МГНОВЕННОЕ ОБНОВЛЕНИЕ UI (Optimistic Update)
         userInventory[name]--; 
         renderInventory(); 
 
+        // 2. Отправка на сервер
         const { data, error } = await supabase.rpc('contribute_to_tree', {
             user_id_param: userId, user_name_param: userName,
             item_name_param: name, points_param: pts
         });
 
-        if(error || (data && !data.success)) {
-            // Если ошибка - возвращаем предмет обратно
+        // 3. Если ошибка - откатываем назад
+        if (error || (data && !data.success)) {
             userInventory[name]++; 
-            renderInventory();
-            showToast('❌ Ошибка! Возможно RLS.', true);
+            renderInventory(); // Рисуем обратно
+            showToast('❌ Ошибка! Предмет вернулся.', true);
         } else {
-            showToast(`✅ Отдано: ${name}`);
+            showToast(`✅ Внесено: ${name}`);
+            // Данные о елке обновятся через Realtime канал ниже
         }
     }
 
@@ -447,20 +422,33 @@
     }
 
     function setupRealtime() {
-        supabase.channel('global_tree_rt').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: 'id=eq.global_tree' }, 
-            (p) => { 
-                if(p.new.level !== currentLevel) fetchLeaderboard();
-                updateUI(p.new.level, p.new.xp);
-            }
-        ).subscribe();
+        console.log("Setting up Realtime...");
+
+        // 1. Слушаем Елку (UPDATE)
+        supabase.channel('global_tree_rt')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: 'id=eq.global_tree' }, 
+            (payload) => { 
+                console.log("Tree update received!", payload);
+                if (payload.new.level !== currentLevel) fetchLeaderboard();
+                updateUI(payload.new.level, payload.new.xp);
+            })
+            .subscribe();
         
-        // Слушаем изменения инвентаря именно для текущего пользователя
-        supabase.channel('inv_rt').on('postgres_changes', { event: '*', schema: 'public', table: 'inventory', filter: `user_id=eq.${userId}` }, 
-            () => fetchInventory()
-        ).subscribe();
+        // 2. Слушаем СВОЙ инвентарь (UPDATE, DELETE)
+        // Чтобы если ты передал предмет через бота, тут он тоже исчез
+        supabase.channel('my_inventory_rt')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory', filter: `user_id=eq.${userId}` }, 
+            (payload) => {
+                // Если предмет обновился (или удалился), просто перезагрузим весь инвентарь для надежности
+                // Это быстро и безопасно
+                fetchInventory(); 
+            })
+            .subscribe();
         
-        supabase.channel('lb_rt').on('postgres_changes', { event: '*', schema: 'public', table: 'tree_contributors' }, 
-            () => setTimeout(fetchLeaderboard, 1000)
+        // 3. Слушаем Топ
+        supabase.channel('lb_rt')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tree_contributors' }, 
+            () => setTimeout(fetchLeaderboard, 1500)
         ).subscribe();
     }
 </script>
