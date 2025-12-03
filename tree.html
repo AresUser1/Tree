@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Global Christmas Tree</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(15, 23, 42, 0.95);
+            --accent-gold: #fbbf24;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background: #02040a;
+            color: #f8fafc;
+            font-family: 'Nunito', sans-serif;
+            overflow-x: hidden;
+            height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* --- ФОН --- */
+        .sky-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, #0f172a 0%, #1e1b4b 100%);
+            z-index: 0;
+        }
+        .forest-layer {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 60%;
+            background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg"><path d="M50 300 L150 50 L250 300 Z" fill="%231e293b" opacity="0.6"/><path d="M200 300 L300 100 L400 300 Z" fill="%231e293b" opacity="0.5"/><path d="M-50 300 L50 120 L150 300 Z" fill="%231e293b" opacity="0.4"/><path d="M400 300 L550 20 L700 300 Z" fill="%231e293b" opacity="0.6"/><path d="M650 300 L750 80 L850 300 Z" fill="%231e293b" opacity="0.5"/><path d="M800 300 L950 40 L1100 300 Z" fill="%231e293b" opacity="0.6"/></svg>');
+            background-repeat: repeat-x; background-size: 1000px 100%; filter: blur(2px); z-index: 1;
+        }
+        #snow-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+
+        .viewport { height: 100vh; display: flex; flex-direction: column; position: relative; z-index: 5; }
+
+        /* --- ЁЛКА (70%) --- */
+        .tree-stage {
+            flex: 7;
+            position: relative;
+            display: flex; justify-content: center; align-items: flex-end;
+            padding-bottom: 20px; /* Отступ от нижнего края секции */
+            overflow: hidden;
+        }
+
+        /* SVG */
+        .tree-svg {
+            height: 98%; width: auto; max-width: 95%;
+            filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
+            z-index: 10; overflow: visible;
+            /* Убрали bottom: 35px, теперь всё внутри SVG */
+        }
+
+        /* Анимации SVG элементов */
+        .star-shape { fill: #4b5563; transition: all 1s ease; }
+        .star-lit { fill: url(#starGradient); filter: drop-shadow(0 0 20px #fbbf24); }
+        .svg-bulb { fill: #334155; transition: fill 0.5s, filter 0.5s; }
+        .svg-bulb.on { filter: drop-shadow(0 0 8px currentColor); }
+        .c-red { fill: #ef4444; color: #ef4444; }
+        .c-yellow { fill: #fbbf24; color: #fbbf24; }
+        .c-blue { fill: #3b82f6; color: #3b82f6; }
+        .c-purple { fill: #a855f7; color: #a855f7; }
+
+        /* --- ПОДАРКИ (CSS) --- */
+        .base-layer {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: flex-end; justify-content: center;
+            z-index: 11; /* Перед елкой */
+            width: 100%; gap: 80px; /* Большой отступ, чтобы не закрывать пень */
+        }
+
+        .gift {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            border-radius: 4px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+            position: relative;
+        }
+        .gift::before { content:''; position:absolute; left:50%; top:0; width:6px; height:100%; background:#fbbf24; transform:translateX(-50%); }
+        .gift::after { content:''; position:absolute; top:50%; left:0; width:100%; height:6px; background:#fbbf24; transform:translateY(-50%); }
+        .gift.blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); width: 50px; height: 35px; }
+        .gift.blue::before, .gift.blue::after { background: #e2e8f0; }
+
+        /* --- ПАНЕЛЬ (30%) --- */
+        .control-panel {
+            flex: 3; background: var(--panel-bg);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+            border-radius: 24px 24px 0 0;
+            padding: 20px 20px 0 20px;
+            display: flex; flex-direction: column;
+            z-index: 20; backdrop-filter: blur(12px);
+        }
+        .level-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
+        .lvl-title { font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: 800; }
+        .lvl-val { font-size: 24px; color: var(--accent-gold); font-weight: 900; line-height: 1; text-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
+        .progress-container {
+            height: 20px; width: 100%; background: rgba(255,255,255,0.05);
+            border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);
+            position: relative; margin-bottom: 15px;
+        }
+        .progress-bar {
+            height: 100%; width: 0%;
+            background: repeating-linear-gradient(-45deg, #ef4444, #ef4444 10px, #f8fafc 10px, #f8fafc 20px);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); transition: width 0.5s ease-out;
+        }
+        .progress-label { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+        .inventory-scroll { flex-grow: 1; overflow-y: auto; padding-right: 5px; padding-bottom: 20px;}
+        .inventory-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .item-card {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 10px; display: flex; align-items: center; gap: 10px;
+            cursor: pointer; transition: all 0.2s; user-select: none;
+        }
+        .item-card:active { transform: scale(0.96); background: rgba(255,255,255,0.05); }
+        .item-card.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(1); }
+        .item-icon { font-size: 20px; }
+        .item-name { font-size: 12px; font-weight: bold; display: block; }
+        .item-gain { font-size: 10px; color: var(--accent-green); }
+        .item-count { background: rgba(34, 197, 94, 0.15); color: #4ade80; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+
+        /* --- ЛИДЕРБОРД --- */
+        .leaderboard-section { background: #020617; padding: 30px 20px 80px 20px; position: relative; z-index: 6; border-top: 1px solid #1e293b; }
+        .lb-title { text-align: center; color: var(--accent-gold); margin-bottom: 20px; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; }
+        .lb-card { background: #0f172a; border-radius: 16px; padding: 15px; border: 1px solid #1e293b; }
+        .lb-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 14px; }
+        .lb-row.me { background: rgba(251, 191, 36, 0.1); border-radius: 8px; padding: 10px 10px; border: 1px solid rgba(251, 191, 36, 0.2); margin: 5px 0; }
+        .rank { width: 25px; color: #64748b; font-weight: bold; }
+        .rank.top { color: #fbbf24; }
+        .u-pts { color: var(--accent-green); font-family: monospace; font-weight: bold; }
+
+        .toast { position: fixed; top: 10px; left: 50%; transform: translateX(-50%) translateY(-100px); background: rgba(34, 197, 94, 0.9); backdrop-filter: blur(5px); color: #fff; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 13px; z-index: 100; box-shadow: 0 5px 20px rgba(0,0,0,0.5); transition: transform 0.3s; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { background: rgba(239, 68, 68, 0.9); }
+        .scroll-hint { text-align: center; font-size: 10px; color: rgba(255,255,255,0.3); padding: 5px 0; }
+        #error-log { position: fixed; top: 50px; left: 10px; right: 10px; background: rgba(220, 38, 38, 0.9); color: white; padding: 10px; border-radius: 8px; font-size: 11px; z-index: 9999; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="sky-bg"></div>
+    <div class="forest-layer"></div>
+    <div id="snow-canvas"></div>
+
+    <div class="viewport">
+        <div class="tree-stage" id="tree-stage">
+            
+            <svg class="tree-svg" viewBox="0 0 300 440" preserveAspectRatio="xMidYMax meet">
+                <defs>
+                    <linearGradient id="treeFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#22c55e" />
+                        <stop offset="40%" stop-color="#16a34a" />
+                        <stop offset="100%" stop-color="#064e3b" />
+                    </linearGradient>
+                    <radialGradient id="starGradient">
+                        <stop offset="0%" stop-color="#fffbeb" />
+                        <stop offset="100%" stop-color="#fbbf24" />
+                    </radialGradient>
+                </defs>
+
+                <rect x="120" y="380" width="60" height="50" fill="#5d4037" stroke="#281813" stroke-width="4" rx="2" />
+                <ellipse cx="150" cy="380" rx="30" ry="10" fill="#8d6e63" stroke="#281813" stroke-width="4" />
+
+                <path d="M150 40 
+                         Q180 120 230 160 
+                         Q250 180 210 180 
+                         Q260 260 280 300
+                         Q290 320 240 320
+                         Q280 380 290 395 
+                         L10 395 
+                         Q20 380 60 320
+                         Q10 320 20 300
+                         Q40 260 90 180
+                         Q50 180 70 160
+                         Q120 120 150 40 Z" 
+                      fill="url(#treeFill)" />
+
+                <path d="M130 80 Q150 90 180 75 M100 130 Q150 150 210 120 M70 200 Q150 230 240 190 M50 280 Q150 320 260 270 M30 360 Q150 410 270 350" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="2" stroke-linecap="round" />
+
+                <g transform="translate(150, 40)">
+                    <path class="star-shape" id="main-star" d="M0 -25 L7 -8 L25 -8 L10 5 L15 22 L0 12 L-15 22 L-10 5 L-25 -8 L-7 -8 Z" />
+                </g>
+
+                <circle cx="160" cy="85" r="4" class="svg-bulb c-red" />
+                <circle cx="140" cy="82" r="4" class="svg-bulb c-yellow" />
+                <circle cx="120" cy="135" r="4" class="svg-bulb c-blue" />
+                <circle cx="160" cy="140" r="4" class="svg-bulb c-red" />
+                <circle cx="190" cy="130" r="4" class="svg-bulb c-purple" />
+                <circle cx="90" cy="210" r="4" class="svg-bulb c-yellow" />
+                <circle cx="150" cy="215" r="4" class="svg-bulb c-blue" />
+                <circle cx="210" cy="205" r="4" class="svg-bulb c-red" />
+                <circle cx="70" cy="290" r="4" class="svg-bulb c-purple" />
+                <circle cx="150" cy="300" r="4" class="svg-bulb c-red" />
+                <circle cx="230" cy="285" r="4" class="svg-bulb c-yellow" />
+                <circle cx="50" cy="375" r="4" class="svg-bulb c-blue" />
+                <circle cx="150" cy="385" r="4" class="svg-bulb c-purple" />
+                <circle cx="250" cy="370" r="4" class="svg-bulb c-red" />
+            </svg>
+
+            <div class="base-layer">
+                <div class="gift blue"></div>
+                <div class="gift"></div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="level-header">
+                <span class="lvl-title">Уровень Ёлки</span>
+                <span class="lvl-val" id="tree-lvl">1</span>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progress-fill"></div>
+                <div class="progress-label" id="progress-text">Loading...</div>
+            </div>
+            <div class="inventory-scroll">
+                <div class="inventory-grid" id="inventory-grid"></div>
+            </div>
+            <div class="scroll-hint">▼ Лидерборд ниже ▼</div>
+        </div>
+    </div>
+
+    <div class="leaderboard-section">
+        <div class="lb-title">🏆 Топ Вкладчиков</div>
+        <div class="lb-card">
+            <div id="my-rank-container" style="margin-bottom:15px; border-bottom:1px dashed #334155; padding-bottom:10px;"></div>
+            <div id="lb-list">Загрузка...</div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <div id="error-log"></div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    // --- CONFIG ---
+    const SUPABASE_URL = "https://jnavsekwmitcajgvfafk.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuYXZzZWt3bWl0Y2FqZ3ZmYWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MDU1OTIsImV4cCI6MjA3NDE4MTU5Mn0.0NmAYM2hgzR7emeg45WpoSgqiHYizmtj8dGhMK7FOS4";
+    
+    // ТВОЙ АДМИН ID (для тестов)
+    const MY_ADMIN_ID = "1877549535";
+    
+    const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : MY_ADMIN_ID;
+    const userName = tg.initDataUnsafe?.user?.first_name || "Кот";
+
+    console.log("Logged as:", userId);
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const ITEMS = {
+        'Шишки': { pts: 10, emoji: '🌲' },
+        'Снежинка': { pts: 20, emoji: '❄️' },
+        'Гирлянда': { pts: 150, emoji: '💡' },
+        'Елочная игрушка': { pts: 300, emoji: '🔮' }
+    };
+
+    let userInventory = {};
+    let currentLevel = 1;
+    let bulbs = [];
+
+    async function init() {
+        initSnow();
+        bulbs = document.querySelectorAll('.svg-bulb');
+        
+        try {
+            await fetchInventory();
+            await fetchTreeData();
+            await fetchLeaderboard();
+        } catch (e) {
+            showError("Data Error: " + e.message);
+        }
+        setupRealtime();
+    }
+
+    // --- VISUALS ---
+    function updateVisuals(percent) {
+        const countToLight = Math.floor((percent / 100) * bulbs.length);
+        bulbs.forEach((bulb, i) => {
+            const shouldBeOn = ((i * 7) % bulbs.length) < countToLight;
+            if (shouldBeOn) bulb.classList.add('on');
+            else bulb.classList.remove('on');
+        });
+
+        const star = document.getElementById('main-star');
+        if (percent >= 90) star.classList.add('star-lit');
+        else star.classList.remove('star-lit');
+    }
+
+    function initSnow() {
+        const canvas = document.getElementById('snow-canvas');
+        const ctx = canvas.getContext('2d');
+        let w = canvas.width = window.innerWidth;
+        let h = canvas.height = window.innerHeight;
+        
+        const flakes = Array.from({length: 60}).map(() => ({
+            x: Math.random() * w, y: Math.random() * h,
+            r: Math.random() * 2 + 1, d: Math.random() * 1 + 0.5
+        }));
+
+        function loop() {
+            ctx.clearRect(0,0,w,h);
+            ctx.fillStyle = "rgba(255,255,255,0.7)";
+            ctx.beginPath();
+            flakes.forEach(f => {
+                ctx.moveTo(f.x, f.y);
+                ctx.arc(f.x, f.y, f.r, 0, Math.PI*2);
+                f.y += Math.pow(f.d, 2) + 0.5;
+                f.x += Math.sin(f.y * 0.02) * 0.5;
+                if(f.y > h) { f.y = 0; f.x = Math.random()*w; }
+            });
+            ctx.fill();
+            requestAnimationFrame(loop);
+        }
+        loop();
+    }
+
+    // --- DATA ---
+    async function fetchTreeData() {
+        const { data, error } = await supabase.from('users').select('level, xp').eq('id', 'global_tree').single();
+        if (error) console.error(error);
+        if (data) updateUI(data.level, data.xp);
+    }
+
+    async function fetchInventory() {
+        const { data, error } = await supabase.from('inventory').select('item_name, quantity').eq('user_id', userId);
+        if (error) {
+            console.error(error);
+            showError("Ошибка загрузки инвентаря. Проверьте RLS!");
+            return;
+        }
+        userInventory = {};
+        if (data) data.forEach(i => userInventory[i.item_name] = i.quantity);
+        renderInventory();
+    }
+
+    async function fetchLeaderboard() {
+        const { data: top } = await supabase.from('tree_contributors').select('*').order('points', {ascending:false}).limit(10);
+        const { data: me } = await supabase.from('tree_contributors').select('*').eq('user_id', userId).single();
+        renderLeaderboard(top || [], me);
+    }
+
+    // --- RENDER ---
+    function updateUI(lvl, xp) {
+        currentLevel = lvl;
+        const max = lvl * 500;
+        const pct = Math.min(100, Math.floor((xp/max)*100));
+        
+        document.getElementById('tree-lvl').textContent = lvl;
+        document.getElementById('progress-fill').style.width = pct + '%';
+        document.getElementById('progress-text').textContent = `${xp} / ${max} (${pct}%)`;
+        
+        updateVisuals(pct);
+    }
+
+    function renderInventory() {
+        const grid = document.getElementById('inventory-grid');
+        grid.innerHTML = '';
+        Object.entries(ITEMS).forEach(([name, info]) => {
+            const qty = userInventory[name] || 0;
+            const div = document.createElement('div');
+            div.className = `item-card ${qty > 0 ? '' : 'disabled'}`;
+            div.onclick = () => donate(name, info.pts);
+            div.innerHTML = `
+                <div class="item-icon">${info.emoji}</div>
+                <div class="item-details">
+                    <span class="item-name">${name}</span>
+                    <span class="item-gain">+${info.pts} XP</span>
+                </div>
+                <div class="item-count">${qty}</div>
+            `;
+            grid.appendChild(div);
+        });
+    }
+
+    function renderLeaderboard(list, me) {
+        const cont = document.getElementById('lb-list');
+        cont.innerHTML = '';
+        if(!list.length) cont.innerHTML = '<div style="text-align:center; opacity:0.5;">Пусто...</div>';
+        
+        list.forEach((u, i) => {
+            const row = document.createElement('div');
+            row.className = `lb-row ${String(u.user_id) === userId ? 'me' : ''}`;
+            const rankIcon = i===0?'🥇':i===1?'🥈':i===2?'🥉': `#${i+1}`;
+            row.innerHTML = `
+                <span class="rank ${i<3?'top':''}">${rankIcon}</span>
+                <span class="user-info" style="flex-grow:1; margin-left:10px;">${u.username}</span>
+                <span class="u-pts">${u.points}</span>
+            `;
+            cont.appendChild(row);
+        });
+
+        const myCont = document.getElementById('my-rank-container');
+        if(me) {
+            myCont.innerHTML = `
+                <div class="lb-row me">
+                    <span class="rank top">★</span>
+                    <span class="user-info" style="flex-grow:1; margin-left:10px;">Вы (${me.username})</span>
+                    <span class="u-pts">${me.points}</span>
+                </div>`;
+        } else {
+            myCont.innerHTML = '<div style="text-align:center; font-size:12px; opacity:0.5;">Вы еще не участвовали</div>';
+        }
+    }
+
+    // --- ACTIONS ---
+    async function donate(name, pts) {
+        if((userInventory[name]||0) <= 0) return;
+        
+        if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+        userInventory[name]--; 
+        renderInventory(); // Optimistic
+
+        const { data, error } = await supabase.rpc('contribute_to_tree', {
+            user_id_param: userId, user_name_param: userName,
+            item_name_param: name, points_param: pts
+        });
+
+        if(error || (data && !data.success)) {
+            userInventory[name]++; // Rollback
+            renderInventory();
+            showToast('❌ Ошибка!', true);
+        } else {
+            showToast(`✅ Отдано: ${name}`);
+        }
+    }
+
+    function showToast(text, err=false) {
+        const t = document.getElementById('toast');
+        t.textContent = text;
+        t.className = `toast show ${err?'error':''}`;
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('error-log');
+        el.style.display = 'block';
+        el.textContent = msg;
+    }
+
+    function setupRealtime() {
+        supabase.channel('global_tree_rt').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: 'id=eq.global_tree' }, 
+            (p) => { 
+                if(p.new.level !== currentLevel) fetchLeaderboard();
+                updateUI(p.new.level, p.new.xp);
+            }
+        ).subscribe();
+
+        supabase.channel('inv_rt').on('postgres_changes', { event: '*', schema: 'public', table: 'inventory', filter: `user_id=eq.${userId}` }, 
+            () => fetchInventory()
+        ).subscribe();
+
+        supabase.channel('lb_rt').on('postgres_changes', { event: '*', schema: 'public', table: 'tree_contributors' }, 
+            () => setTimeout(fetchLeaderboard, 1000)
+        ).subscribe();
+    }
+
+    init();
+</script>
+</body>
+</html>
