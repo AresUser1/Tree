@@ -11,7 +11,6 @@
         :root {
             --panel-bg: rgba(15, 23, 42, 0.95);
             --accent-gold: #fbbf24;
-            --accent-red: #ef4444;
             --accent-green: #22c55e;
         }
 
@@ -20,19 +19,19 @@
             background: #02040a;
             color: #f8fafc;
             font-family: 'Nunito', sans-serif;
-            overflow-x: hidden; /* Горизонтальный скролл запрещен */
-            overflow-y: auto;   /* Вертикальный разрешен */
+            overflow-x: hidden;
+            height: 100vh;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* --- ФОН (АТМОСФЕРА) --- */
+        /* ФОН */
         .background-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            /* Красивый градиент: темная ночь с сиянием по центру */
             background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0f172a 40%, #020617 100%);
             z-index: 0;
         }
         
+        /* СНЕГ (CSS - ЛЕГКИЙ) */
         .snow-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="1.5" fill="white" opacity="0.4"/><circle cx="50" cy="80" r="1" fill="white" opacity="0.4"/><circle cx="150" cy="30" r="2" fill="white" opacity="0.4"/><circle cx="100" cy="150" r="1.5" fill="white" opacity="0.4"/></svg>');
@@ -41,42 +40,40 @@
         }
         @keyframes snow { from { background-position: 0 0; } to { background-position: 0 500px; } }
 
-        /* --- ГЛАВНЫЙ ЭКРАН (ЁЛКА + КНОПКИ) --- */
+        /* ГЛАВНЫЙ КОНТЕЙНЕР */
         .viewport {
-            /* min-height: 100dvh гарантирует, что блок займет весь экран телефона */
-            min-height: 100dvh; 
+            height: 100dvh; /* Динамическая высота для мобилок */
             display: flex; 
             flex-direction: column; 
             position: relative; 
             z-index: 5;
         }
 
-        /* --- СЦЕНА С ЁЛКОЙ (Гибкая высота) --- */
+        /* СЦЕНА С ЁЛКОЙ (Растягивается) */
         .tree-stage {
-            flex-grow: 1; /* Занимает все свободное место */
+            flex-grow: 1;
             position: relative;
             display: flex; 
             justify-content: center; 
-            align-items: flex-end; /* Ёлка прижата к низу этого блока */
-            padding-bottom: 10px;
+            align-items: flex-end; 
+            padding-bottom: 20px;
             overflow: visible;
-            min-height: 50vh; /* Чтобы ёлка не сжималась слишком сильно */
+            min-height: 200px;
         }
 
         .tree-svg {
-            /* Адаптивный размер: не больше 90% ширины и не больше 85% высоты блока */
             width: auto; height: auto;
-            max-width: 90%; max-height: 90%;
+            max-width: 90%; max-height: 95%;
             filter: drop-shadow(0 10px 40px rgba(0,0,0,0.6));
             z-index: 10; overflow: visible;
         }
 
-        /* --- ГРАФИКА (Стили ламп и звезды) --- */
-        .star-shape { fill: #ffff00; stroke: #ca8a04; stroke-width: 1px; transition: all 1.5s ease-in-out; }
-        .star-glowing { fill: #ffff00; stroke: none; } /* JS добавляет filter */
+        /* СТИЛИ SVG */
+        .star-shape { fill: #ffff00; stroke: #ca8a04; stroke-width: 1px; transition: all 1s; }
+        .star-glowing { fill: #ffff00; stroke: none; } 
 
-        .svg-bulb { transition: fill 0.8s ease, filter 0.8s ease; }
-        /* Выключенные (темное стекло) */
+        .svg-bulb { transition: fill 0.5s ease, filter 0.5s ease; }
+        /* Выключенные (темные цвета) */
         .svg-bulb.c-red { fill: #7f1d1d; } .svg-bulb.c-yellow { fill: #854d0e; }
         .svg-bulb.c-blue { fill: #1e3a8a; } .svg-bulb.c-purple { fill: #581c87; }
         /* Включенные (яркие) */
@@ -85,7 +82,6 @@
         .svg-bulb.on.c-blue { fill: #60a5fa; filter: drop-shadow(0 0 8px #60a5fa); }
         .svg-bulb.on.c-purple { fill: #c084fc; filter: drop-shadow(0 0 8px #c084fc); }
 
-        /* Подарки под елкой (CSS) */
         .base-layer {
             position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
             display: flex; align-items: flex-end; justify-content: center;
@@ -97,24 +93,22 @@
         .gift.blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); width: 50px; height: 35px; }
         .gift.blue::before, .gift.blue::after { background: #e2e8f0; }
 
-        /* --- ПАНЕЛЬ УПРАВЛЕНИЯ (Нижний блок) --- */
+        /* ПАНЕЛЬ УПРАВЛЕНИЯ */
         .control-panel {
-            /* Фиксируем высоту панели, чтобы она не прыгала */
-            flex-shrink: 0; 
+            flex-shrink: 0; /* Не сжимается */
             background: var(--panel-bg);
             border-top: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 -10px 50px rgba(0,0,0,0.9);
             border-radius: 24px 24px 0 0;
-            padding: 20px 20px 30px 20px; /* Большой отступ снизу */
+            padding: 20px 20px 30px 20px;
             display: flex; flex-direction: column;
             z-index: 20; 
             backdrop-filter: blur(15px);
-            position: relative;
         }
 
         .level-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
         .lvl-title { font-size: 13px; color: #94a3b8; text-transform: uppercase; font-weight: 800; }
-        .lvl-val { font-size: 24px; color: var(--accent-gold); font-weight: 900; line-height: 1; text-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
+        .lvl-val { font-size: 24px; color: var(--accent-gold); font-weight: 900; line-height: 1; }
 
         .progress-container {
             height: 20px; width: 100%; background: rgba(255,255,255,0.05);
@@ -124,46 +118,43 @@
         .progress-bar {
             height: 100%; width: 0%;
             background: repeating-linear-gradient(-45deg, #ef4444, #ef4444 10px, #f8fafc 10px, #f8fafc 20px);
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); transition: width 0.5s ease-out;
+            transition: width 0.5s ease-out;
         }
         .progress-label { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
 
-        /* Сетка инвентаря */
         .inventory-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
         .item-card {
             background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
             border-radius: 12px; padding: 10px; display: flex; align-items: center; gap: 10px;
-            cursor: pointer; transition: transform 0.1s, background 0.2s; user-select: none;
+            cursor: pointer; transition: transform 0.1s; user-select: none;
         }
         .item-card:active { transform: scale(0.96); background: rgba(255,255,255,0.08); }
         .item-card.disabled { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
         .item-icon { font-size: 24px; }
         .item-details { display: flex; flex-direction: column; flex-grow: 1; }
-        .item-name { font-size: 13px; font-weight: bold; line-height: 1.2; }
+        .item-name { font-size: 13px; font-weight: bold; }
         .item-gain { font-size: 11px; color: var(--accent-green); }
         .item-count { background: rgba(34, 197, 94, 0.15); color: #4ade80; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; }
 
-        .scroll-hint { text-align: center; font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 5px; animation: bounce 2s infinite; }
-        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+        .scroll-hint { text-align: center; font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 5px; }
 
-        /* --- ЛИДЕРБОРД (Отдельная секция внизу) --- */
+        /* ЛИДЕРБОРД */
         .leaderboard-section {
-            background: #020617; /* Темный фон, чтобы отделить от панели */
+            background: #020617; 
             padding: 30px 20px 80px 20px;
-            position: relative; z-index: 4; /* Ниже панели, если будет наложение */
+            position: relative; z-index: 4; 
             border-top: 1px solid #1e293b;
         }
         .lb-title { text-align: center; color: var(--accent-gold); margin-bottom: 20px; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; }
         .lb-card { background: #0f172a; border-radius: 16px; padding: 15px; border: 1px solid #1e293b; }
         .lb-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 14px; }
         .lb-row:last-child { border-bottom: none; }
-        .lb-row.me { background: rgba(251, 191, 36, 0.1); border-radius: 8px; padding: 12px 10px; border: 1px solid rgba(251, 191, 36, 0.2); margin: 5px -10px; }
+        .lb-row.me { background: rgba(251, 191, 36, 0.1); border-radius: 8px; padding: 12px 10px; margin: 5px -10px; }
         .rank { width: 30px; color: #64748b; font-weight: bold; }
         .rank.top { color: #fbbf24; }
         .u-pts { color: var(--accent-green); font-family: monospace; font-weight: bold; font-size: 15px; }
 
-        /* Уведомления */
-        .toast { position: fixed; top: 10px; left: 50%; transform: translateX(-50%) translateY(-100px); background: rgba(34, 197, 94, 0.95); backdrop-filter: blur(5px); color: #fff; padding: 12px 24px; border-radius: 30px; font-weight: bold; font-size: 14px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 8px; width: max-content; max-width: 90%; }
+        .toast { position: fixed; top: 10px; left: 50%; transform: translateX(-50%) translateY(-100px); background: rgba(34, 197, 94, 0.95); backdrop-filter: blur(5px); color: #fff; padding: 12px 24px; border-radius: 30px; font-weight: bold; font-size: 14px; z-index: 100; transition: transform 0.3s; width: max-content; }
         .toast.show { transform: translateX(-50%) translateY(0); }
         .toast.error { background: rgba(239, 68, 68, 0.95); }
         
@@ -177,7 +168,6 @@
 
     <div class="viewport">
         <div class="tree-stage" id="tree-stage">
-            
             <svg class="tree-svg" viewBox="0 0 300 440" preserveAspectRatio="xMidYMax meet">
                 <defs>
                     <linearGradient id="treeFill" x1="0" y1="0" x2="0" y2="1">
@@ -191,7 +181,6 @@
                 <ellipse cx="150" cy="380" rx="30" ry="10" fill="#8d6e63" stroke="#281813" stroke-width="4" />
 
                 <path d="M150 40 Q180 120 230 160 Q250 180 210 180 Q260 260 280 300 Q290 320 240 320 Q280 380 290 395 L10 395 Q20 380 60 320 Q10 320 20 300 Q40 260 90 180 Q50 180 70 160 Q120 120 150 40 Z" fill="url(#treeFill)" />
-
                 <path d="M130 80 Q150 90 180 75 M100 130 Q150 150 210 120 M70 200 Q150 230 240 190 M50 280 Q150 320 260 270 M30 360 Q150 410 270 350" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="2" stroke-linecap="round" />
 
                 <g transform="translate(150, 40)">
@@ -249,6 +238,7 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
 
+    // --- CONFIG ---
     const SUPABASE_URL = "https://jnavsekwmitcajgvfafk.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuYXZzZWt3bWl0Y2FqZ3ZmYWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MDU1OTIsImV4cCI6MjA3NDE4MTU5Mn0.0NmAYM2hgzR7emeg45WpoSgqiHYizmtj8dGhMK7FOS4";
     
@@ -258,44 +248,6 @@
     let bulbs = [];
     let supabase;
 
-    window.onload = async () => {
-        try {
-            const tgUser = tg.initDataUnsafe?.user;
-            if (tgUser) {
-                userId = String(tgUser.id);
-                userName = tgUser.first_name || "Кот";
-            } else {
-                let savedGuestId = localStorage.getItem('guest_user_id');
-                if (!savedGuestId) {
-                    savedGuestId = "guest_" + Math.floor(Math.random() * 1000000);
-                    localStorage.setItem('guest_user_id', savedGuestId);
-                }
-                userId = savedGuestId;
-                userName = "Гость";
-            }
-
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            
-            // Находим и сортируем лампочки (снизу вверх)
-            bulbs = Array.from(document.querySelectorAll('.svg-bulb'));
-            bulbs.sort((a, b) => {
-                const yA = parseFloat(a.getAttribute('cy'));
-                const yB = parseFloat(b.getAttribute('cy'));
-                return yB - yA; 
-            });
-
-            await fetchTreeData();
-            await fetchInventory();
-            await fetchLeaderboard();
-            setupRealtime();
-
-        } catch (e) {
-            console.error(e);
-            document.getElementById('error-log').style.display = 'block';
-            document.getElementById('error-log').innerText = "Ошибка: " + e.message;
-        }
-    };
-
     const ITEMS = {
         'Шишки': { pts: 10, emoji: '🌲' },
         'Снежинка': { pts: 20, emoji: '❄️' },
@@ -303,28 +255,80 @@
         'Елочная игрушка': { pts: 300, emoji: '🔮' }
     };
 
+    window.onload = async () => {
+        try {
+            // --- НОВАЯ ЛОГИКА АВТОРИЗАЦИИ ---
+            // 1. Сначала ищем ID в ссылке (самый надежный способ)
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlUserId = urlParams.get('user_id');
+            const urlFirstName = urlParams.get('first_name');
+
+            if (urlUserId) {
+                userId = urlUserId;
+                userName = urlFirstName || "Игрок";
+                // console.log("Authorized via URL Params:", userId);
+            } 
+            // 2. Если в ссылке нет, пробуем через Telegram API
+            else if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                userId = String(tg.initDataUnsafe.user.id);
+                userName = tg.initDataUnsafe.user.first_name || "Кот";
+                // console.log("Authorized via TG API:", userId);
+            } 
+            // 3. Если ничего нет, включаем Гостя
+            else {
+                let savedGuestId = localStorage.getItem('guest_user_id');
+                if (!savedGuestId) {
+                    savedGuestId = "guest_" + Math.floor(Math.random() * 1000000);
+                    localStorage.setItem('guest_user_id', savedGuestId);
+                }
+                userId = savedGuestId;
+                userName = "Гость";
+                // console.log("Authorized via Guest Mode:", userId);
+            }
+
+            // Инициализация Supabase
+            if (!window.supabase) throw new Error("Supabase library not loaded!");
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            
+            // Находим и сортируем лампочки
+            bulbs = Array.from(document.querySelectorAll('.svg-bulb'));
+            bulbs.sort((a, b) => {
+                const yA = parseFloat(a.getAttribute('cy'));
+                const yB = parseFloat(b.getAttribute('cy'));
+                return yB - yA; 
+            });
+
+            // Загрузка данных
+            await fetchTreeData();
+            await fetchInventory(); // Теперь тут будет правильный userId
+            await fetchLeaderboard();
+            setupRealtime();
+
+        } catch (e) {
+            console.error(e);
+            const errDiv = document.getElementById('error-log');
+            if(errDiv) {
+                errDiv.style.display = 'block';
+                errDiv.innerText = "Ошибка: " + e.message;
+            }
+        }
+    };
+
     function updateVisuals(percent) {
-        // 1. ЛАМПОЧКИ
         const effectivePercent = Math.min(percent, 90); 
         const normalizedPercent = effectivePercent / 90; 
         const countToLight = Math.floor(normalizedPercent * bulbs.length);
         
         bulbs.forEach((bulb, i) => {
-            if (i < countToLight) {
-                bulb.classList.add('on');
-            } else {
-                bulb.classList.remove('on');
-            }
+            if (i < countToLight) bulb.classList.add('on');
+            else bulb.classList.remove('on');
         });
 
-        // 2. ЗВЕЗДА
         const star = document.getElementById('main-star');
-        
         if (percent >= 90) {
             star.classList.add('star-glowing');
             const glowIntensity = (percent - 90) / 10; 
             const radius = 5 + (glowIntensity * 25);
-            // Желтое свечение
             star.style.filter = `drop-shadow(0 0 ${radius}px #fbbf24)`;
         } else {
             star.classList.remove('star-glowing');
@@ -338,6 +342,7 @@
     }
 
     async function fetchInventory() {
+        // Загружаем инвентарь для userId (который мы теперь точно знаем)
         const { data } = await supabase.from('inventory').select('item_name, quantity').eq('user_id', userId);
         userInventory = {};
         if (data) data.forEach(i => userInventory[i.item_name] = i.quantity);
@@ -354,24 +359,23 @@
         currentLevel = lvl;
         const max = lvl * 500;
         const pct = Math.min(100, Math.floor((xp/max)*100));
-        
         document.getElementById('tree-lvl').textContent = lvl;
         document.getElementById('progress-fill').style.width = pct + '%';
         document.getElementById('progress-text').textContent = `${xp} / ${max} (${pct}%)`;
-        
         updateVisuals(pct);
     }
 
     function renderInventory() {
         const grid = document.getElementById('inventory-grid');
         grid.innerHTML = '';
+        
+        // Перебираем возможные предметы для елки
         Object.entries(ITEMS).forEach(([name, info]) => {
-            const qty = userInventory[name] || 0;
+            const qty = userInventory[name] || 0; // Берем из загруженного инвентаря
+            
             const div = document.createElement('div');
             div.className = `item-card ${qty > 0 ? '' : 'disabled'}`;
             div.onclick = () => donate(name, info.pts);
-            
-            // Используем HTML для иконок и текста
             div.innerHTML = `
                 <div class="item-icon">${info.emoji}</div>
                 <div class="item-details">
@@ -388,7 +392,6 @@
         const cont = document.getElementById('lb-list');
         cont.innerHTML = '';
         if(!list.length) cont.innerHTML = '<div style="text-align:center; opacity:0.5;">Пусто...</div>';
-        
         list.forEach((u, i) => {
             const row = document.createElement('div');
             row.className = `lb-row ${String(u.user_id) === userId ? 'me' : ''}`;
@@ -400,7 +403,6 @@
             `;
             cont.appendChild(row);
         });
-
         const myCont = document.getElementById('my-rank-container');
         if(me) {
             myCont.innerHTML = `
@@ -417,6 +419,8 @@
     async function donate(name, pts) {
         if((userInventory[name]||0) <= 0) return;
         if(tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+        
+        // Оптимистичное обновление интерфейса
         userInventory[name]--; 
         renderInventory(); 
 
@@ -426,6 +430,7 @@
         });
 
         if(error || (data && !data.success)) {
+            // Если ошибка - возвращаем предмет обратно
             userInventory[name]++; 
             renderInventory();
             showToast('❌ Ошибка! Возможно RLS.', true);
@@ -436,7 +441,7 @@
 
     function showToast(text, err=false) {
         const t = document.getElementById('toast');
-        t.innerText = text; // innerText безопаснее
+        t.innerText = text; 
         t.className = `toast show ${err?'error':''}`;
         setTimeout(() => t.classList.remove('show'), 2000);
     }
@@ -448,11 +453,12 @@
                 updateUI(p.new.level, p.new.xp);
             }
         ).subscribe();
-
+        
+        // Слушаем изменения инвентаря именно для текущего пользователя
         supabase.channel('inv_rt').on('postgres_changes', { event: '*', schema: 'public', table: 'inventory', filter: `user_id=eq.${userId}` }, 
             () => fetchInventory()
         ).subscribe();
-
+        
         supabase.channel('lb_rt').on('postgres_changes', { event: '*', schema: 'public', table: 'tree_contributors' }, 
             () => setTimeout(fetchLeaderboard, 1000)
         ).subscribe();
