@@ -385,29 +385,71 @@
     }
 
     async function donate(name, pts) {
-        // --- ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ ---
+        // 1. Проверка наличия (Оптимистичная)
         if ((userInventory[name] || 0) <= 0) return;
         
-        if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+        if (window.Telegram.WebApp.HapticFeedback) {
+            window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+        }
         
-        // 1. Сразу меняем UI
+        // 2. Оптимистичное обновление UI (Сразу убираем предмет)
         userInventory[name]--; 
         renderInventory(); 
         
-        // 2. Отправляем запрос
-        const { data, error } = await supabase.rpc('contribute_to_tree', {
-            user_id_param: userId, user_name_param: userName,
-            item_name_param: name, points_param: pts
-        });
+        console.log(`Sending donate: ${name} (${pts} pts)`);
 
-        // 3. Если ошибка - возвращаем всё назад
-        if (error || (data && !data.success)) {
+        try {
+            // 3. Отправка запроса с ЖЕСТКИМ приведением типов
+            // Это гарантирует, что мы шлем именно то, что ждет SQL
+            const payload = {
+                user_id_param: String(userId),          // Точно строка
+                user_name_param: String(userName),      // Точно строка
+                item_name_param: String(name),          // Точно строка
+                points_param: parseInt(pts)             // Точно целое число
+            };
+
+            const { data, error } = await supabase.rpc('contribute_to_tree', payload);
+
+            // 4. Анализ ответа
+            if (error) {
+                throw new Error(`Supabase Error: ${error.message} (${error.code || 'NoCode'})`);
+            }
+
+            if (data && data.success === false) {
+                throw new Error(`Logic Error: ${data.message}`);
+            }
+
+            // --- УСПЕХ ---
+            showToast(`✅ Внесено: ${name}`);
+            
+            // Если сервер сообщил о повышении уровня
+            if (data && data.leveled_up) {
+                console.log("LEVEL UP DETECTED!");
+                showToast("🎉 НОВЫЙ УРОВЕНЬ! Топ сброшен!");
+                // Принудительно обновляем топ через секунду
+                setTimeout(fetchLeaderboard, 1000);
+            }
+
+        } catch (e) {
+            // --- ПРОВАЛ ---
+            console.error("DONATE FAILED:", e);
+            
+            // Возвращаем предмет обратно
             userInventory[name]++; 
             renderInventory();
-            showToast('❌ Ошибка! Предмет вернулся.', true);
-        } else {
-            showToast(`✅ Внесено: ${name}`);
-            // Успех: UI уже обновлен, данные о елке придут через Realtime
+            
+            // 🔥 ПОКАЗЫВАЕМ РЕАЛЬНУЮ ПРИЧИНУ ОШИБКИ НА ЭКРАНЕ 🔥
+            // Это поможет нам понять, что не так (права, типы данных или что-то еще)
+            // alert("Ошибка: " + e.message); // Можно раскомментировать для жесткой отладки
+            
+            showToast('❌ Ошибка: ' + e.message, true);
+            
+            // Если ошибка связана с RLS или правами, пишем в логгер на экране (если он есть)
+            const errDiv = document.getElementById('error-log');
+            if (errDiv) {
+                errDiv.style.display = 'block';
+                errDiv.innerText = "LAST ERROR: " + e.message;
+            }
         }
     }
 
