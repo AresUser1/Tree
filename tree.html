@@ -3,10 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Christmas Tree</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Global Christmas Tree (DEBUG MODE)</title>
+    
+    <style>
+        #debug-console {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 40vh; /* Занимает 40% экрана сверху */
+            background: rgba(0, 0, 0, 0.85);
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 10px;
+            overflow-y: scroll;
+            z-index: 99999;
+            padding: 5px;
+            pointer-events: none; /* Чтобы можно было кликать сквозь него */
+            border-bottom: 2px solid red;
+            display: block;
+        }
+        .log-error { color: #ff3333; font-weight: bold; border-bottom: 1px solid #550000; }
+        .log-warn { color: #ffff33; }
+        .log-info { color: #00ff00; }
+    </style>
+
+    <script>
+        // Создаем массив для хранения логов до загрузки DOM
+        window.logBuffer = [];
+        
+        function screenLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = `[${timestamp}] ${message}`;
+            
+            const consoleDiv = document.getElementById('debug-console');
+            if (consoleDiv) {
+                const div = document.createElement('div');
+                div.className = `log-${type}`;
+                div.innerText = logLine;
+                consoleDiv.appendChild(div);
+                consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            } else {
+                window.logBuffer.push({msg: logLine, type: type});
+            }
+            // Дублируем в реальную консоль на всякий случай
+            if(type === 'error') console.error(message);
+            else console.log(message);
+        }
+
+        // Перехват глобальных ошибок JS
+        window.onerror = function(msg, url, line, col, error) {
+            screenLog(`CRITICAL JS ERROR: ${msg}\nLine: ${line}:${col}`, 'error');
+            return false;
+        };
+
+        // Перехват ошибок Promise (например, Supabase упал)
+        window.onunhandledrejection = function(event) {
+            screenLog(`UNHANDLED PROMISE: ${event.reason}`, 'error');
+        };
+    </script>
+
+    <script src="https://telegram.org/js/telegram-web-app.js" onload="screenLog('Telegram Script Loaded')" onerror="screenLog('FAIL: Telegram Script NOT Loaded', 'error')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onload="screenLog('Supabase Script Loaded')" onerror="screenLog('FAIL: Supabase Script NOT Loaded', 'error')"></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+    
     <style>
         :root {
             --panel-bg: rgba(15, 23, 42, 0.95);
@@ -38,7 +99,6 @@
         }
         @keyframes snow { from { background-position: 0 0; } to { background-position: 0 500px; } }
 
-        /* Структура экрана */
         .viewport {
             height: 100dvh; 
             display: flex; 
@@ -47,7 +107,6 @@
             z-index: 5;
         }
 
-        /* Елка */
         .tree-stage {
             flex-grow: 1;
             position: relative;
@@ -88,14 +147,13 @@
         .gift.blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); width: 50px; height: 35px; }
         .gift.blue::before, .gift.blue::after { background: #e2e8f0; }
 
-        /* Панель управления */
         .control-panel {
             flex-shrink: 0;
             background: var(--panel-bg);
             border-top: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 -10px 50px rgba(0,0,0,0.9);
             border-radius: 24px 24px 0 0;
-            padding: 20px 20px 40px 20px; /* Увеличенный паддинг снизу */
+            padding: 20px 20px 40px 20px;
             display: flex; flex-direction: column;
             z-index: 20; 
             backdrop-filter: blur(15px);
@@ -152,11 +210,11 @@
         .toast { position: fixed; top: 10px; left: 50%; transform: translateX(-50%) translateY(-100px); background: rgba(34, 197, 94, 0.95); backdrop-filter: blur(5px); color: #fff; padding: 12px 24px; border-radius: 30px; font-weight: bold; font-size: 14px; z-index: 100; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); width: max-content; }
         .toast.show { transform: translateX(-50%) translateY(0); }
         .toast.error { background: rgba(239, 68, 68, 0.95); }
-        
-        #error-log { position: fixed; top: 50px; left: 10px; right: 10px; background: rgba(220, 38, 38, 0.9); color: white; padding: 10px; border-radius: 8px; font-size: 11px; z-index: 9999; display: none; }
     </style>
 </head>
 <body>
+
+    <div id="debug-console"></div>
 
     <div class="background-layer"></div>
     <div class="snow-layer"></div>
@@ -227,20 +285,21 @@
     </div>
 
     <div class="toast" id="toast"></div>
-    <div id="error-log"></div>
 
 <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
+    screenLog('Start initializing script...');
 
+    // SUPABASE SETUP
     const SUPABASE_URL = "https://jnavsekwmitcajgvfafk.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuYXZzZWt3bWl0Y2FqZ3ZmYWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MDU1OTIsImV4cCI6MjA3NDE4MTU5Mn0.0NmAYM2hgzR7emeg45WpoSgqiHYizmtj8dGhMK7FOS4";
-    
-    let userId, userName;
+    let supabase;
+
+    // GAME STATE
+    let userId = null;
+    let userName = "Игрок";
     let userInventory = {};
     let currentLevel = 1;
     let bulbs = [];
-    let supabase;
 
     const ITEMS = {
         'Шишки': { pts: 10, emoji: '🌲' },
@@ -249,43 +308,138 @@
         'Елочная игрушка': { pts: 300, emoji: '🔮' }
     };
 
-    window.onload = async () => {
-        try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlUserId = urlParams.get('user_id');
-            
-            if (urlUserId) {
-                userId = urlUserId;
-                userName = urlParams.get('first_name') || "Игрок";
-            } else if (tg.initDataUnsafe?.user) {
-                userId = String(tg.initDataUnsafe.user.id);
-                userName = tg.initDataUnsafe.user.first_name || "Кот";
-            } else {
-                let savedGuestId = localStorage.getItem('guest_user_id');
-                if (!savedGuestId) {
-                    savedGuestId = "guest_" + Math.floor(Math.random() * 1000000);
-                    localStorage.setItem('guest_user_id', savedGuestId);
-                }
-                userId = savedGuestId;
-                userName = "Гость";
-            }
-
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            
-            bulbs = Array.from(document.querySelectorAll('.svg-bulb'));
-            bulbs.sort((a, b) => parseFloat(b.getAttribute('cy')) - parseFloat(a.getAttribute('cy')));
-
-            await fetchTreeData();
-            await fetchInventory();
-            await fetchLeaderboard();
-            setupRealtime();
-
-        } catch (e) {
-            console.error(e);
-            document.getElementById('error-log').style.display = 'block';
-            document.getElementById('error-log').innerText = "Ошибка: " + e.message;
+    // --- MAIN EXECUTION ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Сброс буфера логов на экран
+        if (window.logBuffer) {
+            const consoleDiv = document.getElementById('debug-console');
+            window.logBuffer.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `log-${item.type}`;
+                div.innerText = item.msg;
+                consoleDiv.appendChild(div);
+            });
         }
-    };
+        
+        screenLog('DOM Loaded. Connecting Supabase...');
+        bulbs = document.querySelectorAll('.svg-bulb');
+
+        // 1. Init Supabase
+        try {
+            if (typeof window.supabase === 'undefined') throw new Error("Supabase SDK not loaded");
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            screenLog('Supabase Client Created.');
+        } catch(e) {
+            screenLog('CRITICAL: Supabase Init Failed: ' + e.message, 'error');
+            return;
+        }
+
+        // 2. Identify User
+        try {
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                tg.expand();
+                screenLog('Telegram WebApp Detected.');
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const uidFromUrl = urlParams.get('user_id');
+                const nameFromUrl = urlParams.get('first_name'); // Если бот передает имя
+
+                if (uidFromUrl) {
+                    userId = uidFromUrl;
+                    screenLog(`User ID found in URL: ${userId}`);
+                } else if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    userId = String(tg.initDataUnsafe.user.id);
+                    userName = tg.initDataUnsafe.user.first_name || "Игрок";
+                    screenLog(`User ID found in InitData: ${userId}`);
+                } else {
+                    screenLog('⚠️ No User ID in URL or InitData. Are you testing outside TG?', 'warn');
+                    userId = 'test_user'; // fallback for browser test
+                }
+                
+                if (nameFromUrl) userName = decodeURIComponent(nameFromUrl);
+
+            } else {
+                screenLog('⚠️ Not in Telegram WebApp. Using fallback ID.', 'warn');
+                userId = 'browser_test';
+            }
+        } catch (e) {
+            screenLog('Error identifying user: ' + e.message, 'error');
+        }
+
+        if (!userId) {
+            screenLog('CRITICAL: User ID is null. Cannot proceed.', 'error');
+            return;
+        }
+
+        // 3. Start Game Logic
+        try {
+            screenLog('Fetching initial data...');
+            await Promise.all([
+                fetchTreeData(),
+                fetchInventory(),
+                fetchLeaderboard()
+            ]);
+            screenLog('Initial data loaded successfully.');
+            setupRealtime();
+        } catch (e) {
+            screenLog('Error loading data: ' + e.message, 'error');
+        }
+    });
+
+    // --- GAME FUNCTIONS (With Logs) ---
+
+    async function fetchTreeData() {
+        screenLog('Fetching Tree Data...');
+        const { data, error } = await supabase.from('users').select('level, xp').eq('id', 'global_tree').maybeSingle();
+        if (error) {
+            screenLog('Error fetching tree: ' + error.message, 'error');
+            return;
+        }
+        if (data) {
+            updateUI(data.level, data.xp);
+        } else {
+            screenLog('Global tree data not found in DB', 'warn');
+        }
+    }
+
+    async function fetchInventory() {
+        screenLog(`Fetching inventory for ${userId}...`);
+        const { data, error } = await supabase.from('inventory').select('item_name, quantity').eq('user_id', userId);
+        if (error) {
+            screenLog('Inventory Error: ' + error.message, 'error');
+            return;
+        }
+        userInventory = {};
+        if (data) data.forEach(i => userInventory[i.item_name] = i.quantity);
+        renderInventory();
+    }
+
+    async function fetchLeaderboard() {
+        // screenLog('Fetching Leaderboard...'); // Too spammy
+        const { data: top, error: errTop } = await supabase.from('tree_contributors').select('*').order('points', {ascending:false}).limit(10);
+        const { data: me, error: errMe } = await supabase.from('tree_contributors').select('*').eq('user_id', userId).maybeSingle();
+        
+        if (errTop) screenLog('LB Error: ' + errTop.message, 'error');
+        
+        renderLeaderboard(top || [], me);
+    }
+
+    function updateUI(lvl, xp) {
+        currentLevel = lvl;
+        const max = lvl * 500;
+        const pct = Math.min(100, Math.floor((xp/max)*100));
+        
+        const elLvl = document.getElementById('tree-lvl');
+        const elFill = document.getElementById('progress-fill');
+        const elText = document.getElementById('progress-text');
+
+        if(elLvl) elLvl.textContent = lvl;
+        if(elFill) elFill.style.width = pct + '%';
+        if(elText) elText.textContent = `${xp} / ${max} (${pct}%)`;
+        
+        updateVisuals(pct);
+    }
 
     function updateVisuals(percent) {
         const effectivePercent = Math.min(percent, 90); 
@@ -298,52 +452,26 @@
         });
 
         const star = document.getElementById('main-star');
-        if (percent >= 90) {
-            star.classList.add('star-glowing');
-            const glowIntensity = (percent - 90) / 10; 
-            const radius = 5 + (glowIntensity * 25);
-            star.style.filter = `drop-shadow(0 0 ${radius}px #fbbf24)`;
-        } else {
-            star.classList.remove('star-glowing');
-            star.style.filter = 'none';
+        if(star) {
+            if (percent >= 90) {
+                star.classList.add('star-glowing');
+                const glowIntensity = (percent - 90) / 10; 
+                const radius = 5 + (glowIntensity * 25);
+                star.style.filter = `drop-shadow(0 0 ${radius}px #fbbf24)`;
+            } else {
+                star.classList.remove('star-glowing');
+                star.style.filter = 'none';
+            }
         }
-    }
-
-    async function fetchTreeData() {
-        const { data } = await supabase.from('users').select('level, xp').eq('id', 'global_tree').maybeSingle();
-        if (data) updateUI(data.level, data.xp);
-    }
-
-    async function fetchInventory() {
-        const { data } = await supabase.from('inventory').select('item_name, quantity').eq('user_id', userId);
-        userInventory = {};
-        if (data) data.forEach(i => userInventory[i.item_name] = i.quantity);
-        renderInventory();
-    }
-
-    async function fetchLeaderboard() {
-        const { data: top } = await supabase.from('tree_contributors').select('*').order('points', {ascending:false}).limit(10);
-        const { data: me } = await supabase.from('tree_contributors').select('*').eq('user_id', userId).maybeSingle();
-        renderLeaderboard(top || [], me);
-    }
-
-    function updateUI(lvl, xp) {
-        currentLevel = lvl;
-        const max = lvl * 500;
-        const pct = Math.min(100, Math.floor((xp/max)*100));
-        document.getElementById('tree-lvl').textContent = lvl;
-        document.getElementById('progress-fill').style.width = pct + '%';
-        document.getElementById('progress-text').textContent = `${xp} / ${max} (${pct}%)`;
-        updateVisuals(pct);
     }
 
     function renderInventory() {
         const grid = document.getElementById('inventory-grid');
+        if(!grid) return;
         grid.innerHTML = '';
         Object.entries(ITEMS).forEach(([name, info]) => {
             const qty = userInventory[name] || 0;
             const card = document.createElement('div');
-            // Если предметов 0, делаем кнопку тусклой
             card.className = `item-card ${qty > 0 ? '' : 'disabled'}`;
             card.onclick = () => donate(name, info.pts);
             card.innerHTML = `
@@ -360,6 +488,7 @@
 
     function renderLeaderboard(list, me) {
         const cont = document.getElementById('lb-list');
+        if(!cont) return;
         cont.innerHTML = '';
         if(!list.length) cont.innerHTML = '<div style="text-align:center; opacity:0.5;">Пусто...</div>';
         list.forEach((u, i) => {
@@ -374,7 +503,7 @@
             cont.appendChild(row);
         });
         const myCont = document.getElementById('my-rank-container');
-        if(me) {
+        if(me && myCont) {
             myCont.innerHTML = `
                 <div class="lb-row me">
                     <span class="rank top">★</span>
@@ -385,85 +514,60 @@
     }
 
     async function donate(name, pts) {
-        // 1. Проверка наличия (Оптимистичная)
         if ((userInventory[name] || 0) <= 0) return;
         
-        if (window.Telegram.WebApp.HapticFeedback) {
-            window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-        }
-        
-        // 2. Оптимистичное обновление UI (Сразу убираем предмет)
+        // Optimistic update
         userInventory[name]--; 
         renderInventory(); 
         
-        console.log(`Sending donate: ${name} (${pts} pts)`);
+        screenLog(`Donating ${name} (${pts} pts)...`);
 
         try {
-            // 3. Отправка запроса с ЖЕСТКИМ приведением типов
-            // Это гарантирует, что мы шлем именно то, что ждет SQL
             const payload = {
-                user_id_param: String(userId),          // Точно строка
-                user_name_param: String(userName),      // Точно строка
-                item_name_param: String(name),          // Точно строка
-                points_param: parseInt(pts)             // Точно целое число
+                user_id_param: String(userId),
+                user_name_param: String(userName),
+                item_name_param: String(name),
+                points_param: parseInt(pts)
             };
 
             const { data, error } = await supabase.rpc('contribute_to_tree', payload);
 
-            // 4. Анализ ответа
             if (error) {
-                throw new Error(`Supabase Error: ${error.message} (${error.code || 'NoCode'})`);
+                throw error;
             }
 
             if (data && data.success === false) {
-                throw new Error(`Logic Error: ${data.message}`);
+                throw new Error(data.message);
             }
 
-            // --- УСПЕХ ---
             showToast(`✅ Внесено: ${name}`);
             
-            // Если сервер сообщил о повышении уровня
             if (data && data.leveled_up) {
-                console.log("LEVEL UP DETECTED!");
+                screenLog("LEVEL UP!");
                 showToast("🎉 НОВЫЙ УРОВЕНЬ! Топ сброшен!");
-                // Принудительно обновляем топ через секунду
                 setTimeout(fetchLeaderboard, 1000);
             }
 
         } catch (e) {
-            // --- ПРОВАЛ ---
-            console.error("DONATE FAILED:", e);
-            
-            // Возвращаем предмет обратно
+            screenLog(`Donate Failed: ${e.message}`, 'error');
+            // Revert
             userInventory[name]++; 
             renderInventory();
-            
-            // 🔥 ПОКАЗЫВАЕМ РЕАЛЬНУЮ ПРИЧИНУ ОШИБКИ НА ЭКРАНЕ 🔥
-            // Это поможет нам понять, что не так (права, типы данных или что-то еще)
-            // alert("Ошибка: " + e.message); // Можно раскомментировать для жесткой отладки
-            
             showToast('❌ Ошибка: ' + e.message, true);
-            
-            // Если ошибка связана с RLS или правами, пишем в логгер на экране (если он есть)
-            const errDiv = document.getElementById('error-log');
-            if (errDiv) {
-                errDiv.style.display = 'block';
-                errDiv.innerText = "LAST ERROR: " + e.message;
-            }
         }
     }
 
     function showToast(text, err=false) {
         const t = document.getElementById('toast');
-        t.innerText = text; 
-        t.className = `toast show ${err?'error':''}`;
-        setTimeout(() => t.classList.remove('show'), 2000);
+        if(t) {
+            t.innerText = text; 
+            t.className = `toast show ${err?'error':''}`;
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
     }
 
     function setupRealtime() {
-        console.log("Setting up Realtime...");
-
-        // Слушаем обновления Ёлки (чтобы видеть вклад других)
+        screenLog('Subscribing to Realtime...');
         supabase.channel('global_tree_rt')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: 'id=eq.global_tree' }, 
             (payload) => { 
@@ -472,14 +576,12 @@
             })
             .subscribe();
         
-        // Слушаем изменения личного инвентаря (если передал через бота)
         supabase.channel('my_inventory_rt')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory', filter: `user_id=eq.${userId}` }, 
             () => fetchInventory() 
             )
             .subscribe();
         
-        // Слушаем топ
         supabase.channel('lb_rt')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'tree_contributors' }, 
             () => setTimeout(fetchLeaderboard, 1500)
