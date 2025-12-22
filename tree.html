@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Christmas Tree (DEBUG MODE)</title>
+    <title>Global Christmas Tree</title>
     
     <style>
         #debug-console {
@@ -11,7 +11,7 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 40vh; /* Занимает 40% экрана сверху */
+            height: 40vh;
             background: rgba(0, 0, 0, 0.85);
             color: #00ff00;
             font-family: monospace;
@@ -19,7 +19,7 @@
             overflow-y: scroll;
             z-index: 99999;
             padding: 5px;
-            pointer-events: none; /* Чтобы можно было кликать сквозь него */
+            pointer-events: none;
             border-bottom: 2px solid red;
             display: block;
         }
@@ -29,7 +29,6 @@
     </style>
 
     <script>
-        // Создаем массив для хранения логов до загрузки DOM
         window.logBuffer = [];
         
         function screenLog(message, type = 'info') {
@@ -46,18 +45,15 @@
             } else {
                 window.logBuffer.push({msg: logLine, type: type});
             }
-            // Дублируем в реальную консоль на всякий случай
             if(type === 'error') console.error(message);
             else console.log(message);
         }
 
-        // Перехват глобальных ошибок JS
         window.onerror = function(msg, url, line, col, error) {
             screenLog(`CRITICAL JS ERROR: ${msg}\nLine: ${line}:${col}`, 'error');
             return false;
         };
 
-        // Перехват ошибок Promise (например, Supabase упал)
         window.onunhandledrejection = function(event) {
             screenLog(`UNHANDLED PROMISE: ${event.reason}`, 'error');
         };
@@ -292,7 +288,9 @@
     // SUPABASE SETUP
     const SUPABASE_URL = "https://jnavsekwmitcajgvfafk.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuYXZzZWt3bWl0Y2FqZ3ZmYWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MDU1OTIsImV4cCI6MjA3NDE4MTU5Mn0.0NmAYM2hgzR7emeg45WpoSgqiHYizmtj8dGhMK7FOS4";
-    let supabase;
+    
+    // ИСПРАВЛЕНИЕ: убрали объявление let supabase; - оно будет создано внутри DOMContentLoaded
+    let supabaseClient;
 
     // GAME STATE
     let userId = null;
@@ -305,12 +303,11 @@
         'Шишки': { pts: 10, emoji: '🌲' },
         'Снежинка': { pts: 20, emoji: '❄️' },
         'Гирлянда': { pts: 150, emoji: '🎄' }, 
-        'Елочная игрушка': { pts: 300, emoji: '🔮' }
+        'Ёлочная игрушка': { pts: 300, emoji: '🔮' }
     };
 
     // --- MAIN EXECUTION ---
     document.addEventListener('DOMContentLoaded', async () => {
-        // Сброс буфера логов на экран
         if (window.logBuffer) {
             const consoleDiv = document.getElementById('debug-console');
             window.logBuffer.forEach(item => {
@@ -321,77 +318,64 @@
             });
         }
         
-        screenLog('DOM Loaded. Connecting Supabase...');
+        screenLog('DOM загружен. Начинаем поиск ID...');
         bulbs = document.querySelectorAll('.svg-bulb');
 
-        // 1. Init Supabase
         try {
-            if (typeof window.supabase === 'undefined') throw new Error("Supabase SDK not loaded");
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            screenLog('Supabase Client Created.');
-        } catch(e) {
-            screenLog('CRITICAL: Supabase Init Failed: ' + e.message, 'error');
-            return;
-        }
+            const tg = window.Telegram.WebApp;
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            const idFromUrl = urlParams.get('user_id');
+            const idFromTg = tg.initDataUnsafe && tg.initDataUnsafe.user ? String(tg.initDataUnsafe.user.id) : null;
+            
+            userId = idFromUrl || idFromTg;
+            
+            screenLog(`ЛОГ: ID из ссылки: ${idFromUrl}`);
+            screenLog(`ЛОГ: ID из Телеграма: ${idFromTg}`);
+            screenLog(`ЛОГ: ИТОГОВЫЙ ID: [${userId}]`);
 
-        // 2. Identify User
-        try {
-            if (window.Telegram && window.Telegram.WebApp) {
-                const tg = window.Telegram.WebApp;
-                tg.expand();
-                screenLog('Telegram WebApp Detected.');
-                
-                const urlParams = new URLSearchParams(window.location.search);
-                const uidFromUrl = urlParams.get('user_id');
-                const nameFromUrl = urlParams.get('first_name'); // Если бот передает имя
-
-                if (uidFromUrl) {
-                    userId = uidFromUrl;
-                    screenLog(`User ID found in URL: ${userId}`);
-                } else if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                    userId = String(tg.initDataUnsafe.user.id);
-                    userName = tg.initDataUnsafe.user.first_name || "Игрок";
-                    screenLog(`User ID found in InitData: ${userId}`);
-                } else {
-                    screenLog('⚠️ No User ID in URL or InitData. Are you testing outside TG?', 'warn');
-                    userId = 'test_user'; // fallback for browser test
-                }
-                
-                if (nameFromUrl) userName = decodeURIComponent(nameFromUrl);
-
+            if (!userId) {
+                screenLog('❌ ОШИБКА: ID пользователя не найден! Проверь ссылку в боте.', 'error');
             } else {
-                screenLog('⚠️ Not in Telegram WebApp. Using fallback ID.', 'warn');
-                userId = 'browser_test';
+                const nameFromUrl = urlParams.get('first_name');
+                if (nameFromUrl) userName = decodeURIComponent(nameFromUrl);
+                else if (tg.initDataUnsafe && tg.initDataUnsafe.user) userName = tg.initDataUnsafe.user.first_name;
+                
+                screenLog(`Игрок: ${userName} (ID: ${userId})`);
             }
         } catch (e) {
-            screenLog('Error identifying user: ' + e.message, 'error');
+            screenLog('Ошибка при определении ID: ' + e.message, 'error');
         }
 
-        if (!userId) {
-            screenLog('CRITICAL: User ID is null. Cannot proceed.', 'error');
-            return;
-        }
-
-        // 3. Start Game Logic
         try {
-            screenLog('Fetching initial data...');
-            await Promise.all([
-                fetchTreeData(),
-                fetchInventory(),
-                fetchLeaderboard()
-            ]);
-            screenLog('Initial data loaded successfully.');
-            setupRealtime();
+            if (typeof window.supabase === 'undefined') {
+                throw new Error("Библиотека Supabase не загружена (проверь интернет)");
+            }
+            
+            // ИСПРАВЛЕНИЕ: создаем клиент с новым именем переменной
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            screenLog('Клиент Supabase создан.');
+
+            if (userId) {
+                screenLog('Загружаем данные ёлки и инвентарь...');
+                await Promise.all([
+                    fetchTreeData(),
+                    fetchInventory(),
+                    fetchLeaderboard()
+                ]);
+                screenLog('Все данные загружены успешно.');
+                setupRealtime();
+            }
         } catch (e) {
-            screenLog('Error loading data: ' + e.message, 'error');
+            screenLog('Критическая ошибка: ' + e.message, 'error');
         }
     });
 
-    // --- GAME FUNCTIONS (With Logs) ---
+    // --- GAME FUNCTIONS ---
 
     async function fetchTreeData() {
         screenLog('Fetching Tree Data...');
-        const { data, error } = await supabase.from('users').select('level, xp').eq('id', 'global_tree').maybeSingle();
+        const { data, error } = await supabaseClient.from('users').select('level, xp').eq('id', 'global_tree').maybeSingle();
         if (error) {
             screenLog('Error fetching tree: ' + error.message, 'error');
             return;
@@ -405,7 +389,7 @@
 
     async function fetchInventory() {
         screenLog(`Fetching inventory for ${userId}...`);
-        const { data, error } = await supabase.from('inventory').select('item_name, quantity').eq('user_id', userId);
+        const { data, error } = await supabaseClient.from('inventory').select('item_name, quantity').eq('user_id', userId);
         if (error) {
             screenLog('Inventory Error: ' + error.message, 'error');
             return;
@@ -416,9 +400,8 @@
     }
 
     async function fetchLeaderboard() {
-        // screenLog('Fetching Leaderboard...'); // Too spammy
-        const { data: top, error: errTop } = await supabase.from('tree_contributors').select('*').order('points', {ascending:false}).limit(10);
-        const { data: me, error: errMe } = await supabase.from('tree_contributors').select('*').eq('user_id', userId).maybeSingle();
+        const { data: top, error: errTop } = await supabaseClient.from('tree_contributors').select('*').order('points', {ascending:false}).limit(10);
+        const { data: me, error: errMe } = await supabaseClient.from('tree_contributors').select('*').eq('user_id', userId).maybeSingle();
         
         if (errTop) screenLog('LB Error: ' + errTop.message, 'error');
         
@@ -516,7 +499,6 @@
     async function donate(name, pts) {
         if ((userInventory[name] || 0) <= 0) return;
         
-        // Optimistic update
         userInventory[name]--; 
         renderInventory(); 
         
@@ -530,7 +512,7 @@
                 points_param: parseInt(pts)
             };
 
-            const { data, error } = await supabase.rpc('contribute_to_tree', payload);
+            const { data, error } = await supabaseClient.rpc('contribute_to_tree', payload);
 
             if (error) {
                 throw error;
