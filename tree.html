@@ -5,62 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Global Christmas Tree</title>
     
-    <style>
-        #debug-console {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 40vh;
-            background: rgba(0, 0, 0, 0.85);
-            color: #00ff00;
-            font-family: monospace;
-            font-size: 10px;
-            overflow-y: scroll;
-            z-index: 99999;
-            padding: 5px;
-            pointer-events: none;
-            border-bottom: 2px solid red;
-            display: block;
-        }
-        .log-error { color: #ff3333; font-weight: bold; border-bottom: 1px solid #550000; }
-        .log-warn { color: #ffff33; }
-        .log-info { color: #00ff00; }
-    </style>
-
-    <script>
-        window.logBuffer = [];
-        
-        function screenLog(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const logLine = `[${timestamp}] ${message}`;
-            
-            const consoleDiv = document.getElementById('debug-console');
-            if (consoleDiv) {
-                const div = document.createElement('div');
-                div.className = `log-${type}`;
-                div.innerText = logLine;
-                consoleDiv.appendChild(div);
-                consoleDiv.scrollTop = consoleDiv.scrollHeight;
-            } else {
-                window.logBuffer.push({msg: logLine, type: type});
-            }
-            if(type === 'error') console.error(message);
-            else console.log(message);
-        }
-
-        window.onerror = function(msg, url, line, col, error) {
-            screenLog(`CRITICAL JS ERROR: ${msg}\nLine: ${line}:${col}`, 'error');
-            return false;
-        };
-
-        window.onunhandledrejection = function(event) {
-            screenLog(`UNHANDLED PROMISE: ${event.reason}`, 'error');
-        };
-    </script>
-
-    <script src="https://telegram.org/js/telegram-web-app.js" onload="screenLog('Telegram Script Loaded')" onerror="screenLog('FAIL: Telegram Script NOT Loaded', 'error')"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onload="screenLog('Supabase Script Loaded')" onerror="screenLog('FAIL: Supabase Script NOT Loaded', 'error')"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
     
@@ -210,8 +156,6 @@
 </head>
 <body>
 
-    <div id="debug-console"></div>
-
     <div class="background-layer"></div>
     <div class="snow-layer"></div>
 
@@ -283,16 +227,10 @@
     <div class="toast" id="toast"></div>
 
 <script>
-    screenLog('Start initializing script...');
-
-    // SUPABASE SETUP
     const SUPABASE_URL = "https://jnavsekwmitcajgvfafk.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpuYXZzZWt3bWl0Y2FqZ3ZmYWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MDU1OTIsImV4cCI6MjA3NDE4MTU5Mn0.0NmAYM2hgzR7emeg45WpoSgqiHYizmtj8dGhMK7FOS4";
     
-    // ИСПРАВЛЕНИЕ: убрали объявление let supabase; - оно будет создано внутри DOMContentLoaded
     let supabaseClient;
-
-    // GAME STATE
     let userId = null;
     let userName = "Игрок";
     let userInventory = {};
@@ -306,19 +244,7 @@
         'Ёлочная игрушка': { pts: 300, emoji: '🔮' }
     };
 
-    // --- MAIN EXECUTION ---
     document.addEventListener('DOMContentLoaded', async () => {
-        if (window.logBuffer) {
-            const consoleDiv = document.getElementById('debug-console');
-            window.logBuffer.forEach(item => {
-                const div = document.createElement('div');
-                div.className = `log-${item.type}`;
-                div.innerText = item.msg;
-                consoleDiv.appendChild(div);
-            });
-        }
-        
-        screenLog('DOM загружен. Начинаем поиск ID...');
         bulbs = document.querySelectorAll('.svg-bulb');
 
         try {
@@ -329,69 +255,51 @@
             const idFromTg = tg.initDataUnsafe && tg.initDataUnsafe.user ? String(tg.initDataUnsafe.user.id) : null;
             
             userId = idFromUrl || idFromTg;
-            
-            screenLog(`ЛОГ: ID из ссылки: ${idFromUrl}`);
-            screenLog(`ЛОГ: ID из Телеграма: ${idFromTg}`);
-            screenLog(`ЛОГ: ИТОГОВЫЙ ID: [${userId}]`);
 
-            if (!userId) {
-                screenLog('❌ ОШИБКА: ID пользователя не найден! Проверь ссылку в боте.', 'error');
-            } else {
+            if (userId) {
                 const nameFromUrl = urlParams.get('first_name');
                 if (nameFromUrl) userName = decodeURIComponent(nameFromUrl);
                 else if (tg.initDataUnsafe && tg.initDataUnsafe.user) userName = tg.initDataUnsafe.user.first_name;
-                
-                screenLog(`Игрок: ${userName} (ID: ${userId})`);
             }
         } catch (e) {
-            screenLog('Ошибка при определении ID: ' + e.message, 'error');
+            console.error('Error getting user ID:', e);
         }
 
         try {
             if (typeof window.supabase === 'undefined') {
-                throw new Error("Библиотека Supabase не загружена (проверь интернет)");
+                throw new Error("Supabase library not loaded");
             }
             
-            // ИСПРАВЛЕНИЕ: создаем клиент с новым именем переменной
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            screenLog('Клиент Supabase создан.');
 
             if (userId) {
-                screenLog('Загружаем данные ёлки и инвентарь...');
                 await Promise.all([
                     fetchTreeData(),
                     fetchInventory(),
                     fetchLeaderboard()
                 ]);
-                screenLog('Все данные загружены успешно.');
                 setupRealtime();
             }
         } catch (e) {
-            screenLog('Критическая ошибка: ' + e.message, 'error');
+            console.error('Critical error:', e);
         }
     });
 
-    // --- GAME FUNCTIONS ---
-
     async function fetchTreeData() {
-        screenLog('Fetching Tree Data...');
         const { data, error } = await supabaseClient.from('users').select('level, xp').eq('id', 'global_tree').maybeSingle();
         if (error) {
-            screenLog('Error fetching tree: ' + error.message, 'error');
+            console.error('Error fetching tree:', error);
             return;
         }
         if (data) {
             updateUI(data.level, data.xp);
-        } else {
-            screenLog('Global tree data not found in DB', 'warn');
         }
     }
 
     async function fetchInventory() {
-        screenLog(`Fetching inventory for ${userId}...`);
         const { data, error } = await supabaseClient.from('inventory').select('item_name, quantity').eq('user_id', userId);
         if (error) {
-            screenLog('Inventory Error: ' + error.message, 'error');
+            console.error('Inventory error:', error);
             return;
         }
         userInventory = {};
@@ -403,7 +311,7 @@
         const { data: top, error: errTop } = await supabaseClient.from('tree_contributors').select('*').order('points', {ascending:false}).limit(10);
         const { data: me, error: errMe } = await supabaseClient.from('tree_contributors').select('*').eq('user_id', userId).maybeSingle();
         
-        if (errTop) screenLog('LB Error: ' + errTop.message, 'error');
+        if (errTop) console.error('Leaderboard error:', errTop);
         
         renderLeaderboard(top || [], me);
     }
@@ -501,8 +409,6 @@
         
         userInventory[name]--; 
         renderInventory(); 
-        
-        screenLog(`Donating ${name} (${pts} pts)...`);
 
         try {
             const payload = {
@@ -514,25 +420,18 @@
 
             const { data, error } = await supabaseClient.rpc('contribute_to_tree', payload);
 
-            if (error) {
-                throw error;
-            }
-
-            if (data && data.success === false) {
-                throw new Error(data.message);
-            }
+            if (error) throw error;
+            if (data && data.success === false) throw new Error(data.message);
 
             showToast(`✅ Внесено: ${name}`);
             
             if (data && data.leveled_up) {
-                screenLog("LEVEL UP!");
                 showToast("🎉 НОВЫЙ УРОВЕНЬ! Топ сброшен!");
                 setTimeout(fetchLeaderboard, 1000);
             }
 
         } catch (e) {
-            screenLog(`Donate Failed: ${e.message}`, 'error');
-            // Revert
+            console.error('Donate failed:', e);
             userInventory[name]++; 
             renderInventory();
             showToast('❌ Ошибка: ' + e.message, true);
@@ -549,25 +448,47 @@
     }
 
     function setupRealtime() {
-        screenLog('Subscribing to Realtime...');
-        supabase.channel('global_tree_rt')
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: 'id=eq.global_tree' }, 
-            (payload) => { 
-                if (payload.new.level !== currentLevel) fetchLeaderboard();
-                updateUI(payload.new.level, payload.new.xp);
-            })
-            .subscribe();
-        
-        supabase.channel('my_inventory_rt')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory', filter: `user_id=eq.${userId}` }, 
-            () => fetchInventory() 
+        // ИСПРАВЛЕНИЕ: используем supabaseClient вместо supabase
+        supabaseClient
+            .channel('global_tree_rt')
+            .on('postgres_changes', 
+                { 
+                    event: 'UPDATE', 
+                    schema: 'public', 
+                    table: 'users', 
+                    filter: 'id=eq.global_tree' 
+                }, 
+                (payload) => { 
+                    if (payload.new.level !== currentLevel) fetchLeaderboard();
+                    updateUI(payload.new.level, payload.new.xp);
+                }
             )
             .subscribe();
         
-        supabase.channel('lb_rt')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'tree_contributors' }, 
-            () => setTimeout(fetchLeaderboard, 1500)
-        ).subscribe();
+        supabaseClient
+            .channel('my_inventory_rt')
+            .on('postgres_changes', 
+                { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'inventory', 
+                    filter: `user_id=eq.${userId}` 
+                }, 
+                () => fetchInventory()
+            )
+            .subscribe();
+        
+        supabaseClient
+            .channel('lb_rt')
+            .on('postgres_changes', 
+                { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'tree_contributors' 
+                }, 
+                () => setTimeout(fetchLeaderboard, 1500)
+            )
+            .subscribe();
     }
 </script>
 </body>
